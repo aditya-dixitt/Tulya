@@ -107,12 +107,37 @@ auto-suggest pairs and 25 hard-key-veto examples — each with a full
 union-find, persisted to that browser's `localStorage`. It's what to send
 someone who can't run Python.
 
-Console feature surface: a review queue and an auto-suggest queue (score
-bands from `engine/score.py`), a reason panel per pair (`engine/explain.py`,
-rendered instead of just printed), golden-record groups formed by
-steward-approved edges only (`api/grouping.py`), un-merge (split a record
-back out of its group), an append-only audit log, and live search
-(`POST /api/search`, same fusion scorer demo.py uses).
+Console feature surface:
+
+- **Review queue**, ranked by priority rather than score alone — *uncertainty*
+  (how close the score sits to the 0.92 cut), *thin evidence* (how few specs
+  were readable on both sides) and *value at stake* (qty × unit value across
+  both records, from the source rows). All three are shown on every card, so
+  the ranking can be argued with.
+- **Auto-suggest queue** — score ≥ 0.92, still requiring a human's sign-off.
+- **"Why did SAMANVAY match these?"** — each signal with its weight *and its
+  contribution to the fused score*, every hard key as MATCH / MISMATCH /
+  UNKNOWN, the evidence count, and a plain verdict. A pair that clears 0.92 but
+  is capped by the coverage floor is labelled `HELD — THIN EVIDENCE`, not
+  "high confidence".
+- **Hard-key vetoes** — the highest text-similarity pairs the engine still
+  rejected, each shown against what a fuzzy matcher would have scored it.
+- **Performance** (`GET /api/performance`) — a slider over the real validation
+  sweep the threshold was selected from, the locked holdout result, the
+  five-method baseline comparison, and what the veto is worth on planted hard
+  negatives. Nothing here is recomputed for display; it is read from
+  `threshold_selection.json` and `holdout_run.json`.
+- **Golden records** — groups formed only by steward-approved edges
+  (`api/grouping.py`), with every legacy code mapped and any member splittable
+  back out.
+- **Audit log** — append-only, recording the confidence at the moment of the
+  decision and the before → after group state.
+- **Live search** (`GET /api/search`) — same fusion scorer `demo.py` uses.
+
+The static export adds a **Test SAMANVAY** panel: three real pairs from the
+locked split (an ordinary duplicate, a duplicate whose descriptions barely
+overlap, and a near-identical pair that is *not* the same part) where the
+reader commits to an answer before the ground truth is revealed.
 
 ## Layout
 

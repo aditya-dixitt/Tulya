@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SAMANVAY — Steward Console</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%2312283F%27/%3E%3Ctext x=%2716%27 y=%2723%27 font-family=%27Helvetica,Arial%27 font-size=%2719%27 font-weight=%27bold%27 fill=%27%23FFFFFF%27 text-anchor=%27middle%27%3ES%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --navy:#12283F; --blue:#1F6FB2; --blue-lt:#E9F1F8;
@@ -13,10 +17,12 @@
     --grey:#6B7A88; --grey-lt:#F5F7F9;
     --ink:#1F2A36; --red:#B5473A; --red-lt:#FAEDEB;
     --border:#DCE4EA; --white:#fff;
+    --font-ui:"Poppins",-apple-system,"Segoe UI",Roboto,sans-serif;
+    --font-mono:"IBM Plex Mono","SF Mono",Consolas,monospace;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--grey-lt);color:var(--ink);
-       font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px}
+       font-family:var(--font-ui);font-size:14px;-webkit-font-smoothing:antialiased}
   header{background:var(--navy);color:#fff;padding:14px 22px;display:flex;
          align-items:center;justify-content:space-between}
   header .brand{display:flex;align-items:baseline;gap:10px}
@@ -25,7 +31,7 @@
   header .badge{font-size:11px;background:#1F6FB2;padding:3px 9px;border-radius:10px}
   nav{display:flex;gap:2px;background:#fff;border-bottom:1px solid var(--border);
       padding:0 18px;overflow-x:auto}
-  nav button{border:none;background:none;padding:12px 16px;font-size:13.5px;font-weight:600;
+  nav button{border:none;background:none;font-family:var(--font-ui);padding:12px 16px;font-size:13.5px;font-weight:600;
              color:var(--grey);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
   nav button.active{color:var(--navy);border-bottom-color:var(--blue)}
   nav button .n{display:inline-block;margin-left:6px;background:var(--blue-lt);color:var(--blue);
@@ -47,7 +53,7 @@
   td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:top}
   tr:last-child td{border-bottom:none}
   tr:hover td{background:#FAFCFE}
-  .mono{font-family:"SF Mono",Consolas,monospace;font-size:12px}
+  .mono{font-family:var(--font-mono);font-size:12px}
   .pill{display:inline-block;padding:2px 9px;border-radius:9px;font-size:11px;font-weight:700}
   .pill.review{background:var(--gold-lt);color:var(--gold-tx)}
   .pill.auto{background:var(--blue-lt);color:var(--blue)}
@@ -55,7 +61,7 @@
   .pill.approve{background:var(--green-lt);color:var(--green)}
   .pill.reject{background:var(--red-lt);color:var(--red)}
   .pill.unmerge{background:var(--gold-lt);color:var(--gold-tx)}
-  .btn{border:none;border-radius:6px;padding:7px 13px;font-size:12.5px;font-weight:700;
+  .btn{border:none;border-radius:6px;font-family:var(--font-ui);padding:7px 13px;font-size:12.5px;font-weight:700;
        cursor:pointer;margin-right:6px}
   .btn.approve{background:var(--green);color:#fff}
   .btn.reject{background:var(--red);color:#fff}
@@ -111,6 +117,7 @@
   <button data-p="queue">Review Queue <span class="n" id="nQueue">–</span></button>
   <button data-p="auto">Auto-Suggest <span class="n" id="nAuto">–</span></button>
   <button data-p="groups">Golden Records <span class="n" id="nGroups">–</span></button>
+  <button data-p="performance">Performance</button>
   <button data-p="search">Search</button>
   <button data-p="audit">Audit Log</button>
 </nav>
@@ -163,6 +170,37 @@
     <div id="groupsList"></div>
   </div>
 
+  <!-- PERFORMANCE -->
+  <div class="panel" id="p-performance">
+    <div class="section-title">Where the threshold comes from</div>
+    <div class="hint">Every figure below is a measured point from the validation sweep the operating
+      threshold was actually selected on — not a formula, and not the test split.</div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <span style="font-size:12.5px;color:var(--grey)">Auto-suggest threshold</span>
+        <span id="tVal" style="font-size:22px;font-weight:700;color:var(--navy)">0.92</span>
+      </div>
+      <input type="range" id="tSlider" min="0" max="19" step="1" value="12"
+             style="width:100%;accent-color:var(--blue)">
+      <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--grey)"
+           class="mono"><span>0.80</span><span>0.90</span><span>0.99</span></div>
+      <div class="cards" id="sweepMetrics" style="margin:16px 0 4px"></div>
+      <div class="hint" id="sweepNote" style="margin:6px 0 0"></div>
+    </div>
+
+    <div class="section-title">What the locked holdout returned</div>
+    <div class="hint">Chosen on validation, then the test split was scored <b>once</b> at that threshold.</div>
+    <div class="cards" id="holdoutCards"></div>
+
+    <div class="section-title">Versus the alternatives, on identical candidate pairs</div>
+    <div class="hint">All five score the same candidate set, each at its own best-F1 point — so this
+      isolates the scorer, not the retrieval.</div>
+    <table id="baselineTable"></table>
+
+    <div class="section-title">What the hard-key veto is worth</div>
+    <table id="vetoTable"></table>
+  </div>
+
   <!-- SEARCH -->
   <div class="panel" id="p-search">
     <div class="section-title">Live search — same engine, arbitrary query</div>
@@ -210,6 +248,7 @@ function switchPanel(name){
   if(name==='auto') loadAuto(true);
   if(name==='groups') loadGroups();
   if(name==='audit') loadAudit();
+  if(name==='performance') loadPerformance();
 }
 document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click', ()=>switchPanel(b.dataset.p)));
 
@@ -252,19 +291,37 @@ async function loadStats(){
 }
 
 // ---------------- queue / auto-suggest ----------------
+function bandOf(it){
+  // a pair can clear 0.92 and still be held: the coverage floor caps anything
+  // resting on fewer than two specifications known on both sides
+  if(it.decision === 'REVIEW' && it.score >= 0.92) return 'HELD — THIN EVIDENCE';
+  if(it.score >= 0.92) return 'HIGH confidence';
+  if(it.score >= 0.75) return 'MEDIUM confidence';
+  return 'LOW confidence';
+}
+function inr(v){
+  if(v >= 1e7) return '₹' + (v/1e7).toFixed(2) + ' cr';
+  if(v >= 1e5) return '₹' + (v/1e5).toFixed(2) + ' L';
+  return '₹' + Math.round(v).toLocaleString('en-IN');
+}
 function pairCardHTML(it, kind){
   const a = it.record_a, b = it.record_b;
   const pillClass = kind==='auto' ? 'auto' : 'review';
+  const p = it.priority;
+  const prio = (kind==='queue' && p) ? `<div class="mono" style="color:var(--grey);font-size:11px;margin-top:8px">
+      uncertainty ${(p.uncertainty*100).toFixed(0)}% · evidence ${it.coverage} spec${it.coverage===1?'':'s'} on both sides · value at stake ${inr(p.value_raw)}</div>` : '';
   return `<div class="card" style="margin-bottom:10px" data-a="${it.a}" data-b="${it.b}">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <span class="pill ${pillClass}">${it.decision} · score ${it.score}</span>
-      <span class="mono" style="color:var(--grey);font-size:11.5px">coverage ${it.coverage} · cos ${it.cos} · fuz ${it.fuz}</span>
+      <span class="mono" style="color:var(--grey);font-size:11.5px">${(it.score*100).toFixed(1)}% · ${bandOf(it)}</span>
     </div>
     <div class="desc-pair">
       <div><b>${a.cpse}</b> · <span class="mono">${a.legacy_code}</span> — ${a.description}</div>
       <div><b>${b.cpse}</b> · <span class="mono">${b.legacy_code}</span> — ${b.description}</div>
     </div>
-    <button class="btn ghost small" onclick="openExplain(${it.a},${it.b})">why?</button>
+    ${prio}
+    <div style="margin-top:10px"></div>
+    <button class="btn ghost small" onclick="openExplain(${it.a},${it.b})">Why did SAMANVAY match these?</button>
     <button class="btn approve small" onclick="decide(${it.a},${it.b},'approve','${kind}')">approve</button>
     <button class="btn reject small" onclick="decide(${it.a},${it.b},'reject','${kind}')">reject</button>
   </div>`;
@@ -312,10 +369,18 @@ async function openExplain(a,b){
       <div><b>${x.a.cpse}</b> · <span class="mono">${x.a.code}</span> — ${x.a.text}</div>
       <div><b>${x.b.cpse}</b> · <span class="mono">${x.b.code}</span> — ${x.b.text}</div>
     </div>
-    <div style="font-weight:700;font-size:12px;color:var(--grey);margin-top:14px">SIGNALS</div>`;
+    <div style="display:flex;align-items:baseline;gap:10px;margin-top:12px">
+      <span style="font-size:26px;font-weight:700;color:${x.vetoed?'var(--red)':'var(--navy)'}">${(x.score*100).toFixed(1)}%</span>
+      <span class="pill ${x.vetoed?'vetoed':(x.decision==='AUTO_SUGGEST'?'auto':'review')}">${x.vetoed?'VETOED':x.decision}</span>
+    </div>
+    <div style="font-weight:700;font-size:12px;color:var(--grey);margin-top:14px">SIGNALS AND WHAT EACH CONTRIBUTED</div>
+    <table style="margin-top:6px"><thead><tr><th>Signal</th><th>Result</th><th>Weight</th><th>Contribution</th></tr></thead><tbody>`;
   x.signals.forEach(s=>{
-    html += `<div class="sig-row"><span>${s.name}</span><span class="mono">${s.value.toFixed(3)} × ${s.weight}</span></div>`;
+    html += `<tr><td>${s.name}</td><td class="mono">${(s.value*100).toFixed(1)}%</td>
+      <td class="mono">×${s.weight}</td><td class="mono">+${(s.value*s.weight).toFixed(3)}</td></tr>`;
   });
+  html += `<tr><td colspan="3"><b>Hard-key conflict</b></td>
+    <td class="mono" style="color:${x.vetoed?'var(--red)':'var(--green)'}">${x.vetoed?'DETECTED':'none ✓'}</td></tr></tbody></table>`;
   html += `<div style="font-weight:700;font-size:12px;color:var(--grey);margin-top:14px">HARD-KEY ATTRIBUTES</div>`;
   if(!x.attributes.length){ html += `<div class="hint">No shared hard-key attributes extracted on either side.</div>`; }
   x.attributes.forEach(at=>{
@@ -327,7 +392,11 @@ async function openExplain(a,b){
       <div class="sig-row" style="font-weight:700"><span>Final score</span><span class="mono">${x.score.toFixed(3)}</span></div>
       <div class="sig-row"><span>Decision</span><span class="pill ${x.vetoed?'vetoed':(x.decision==='AUTO_SUGGEST'?'auto':'review')}">${x.decision}</span></div>
     </div>
-    <div class="hint" style="margin-top:8px">${x.reason}</div>`;
+    <div class="card" style="margin-top:12px;background:${x.vetoed?'var(--red-lt)':(x.decision==='AUTO_SUGGEST'?'var(--green-lt)':'var(--gold-lt)')};border:none">
+      <b style="display:block;margin-bottom:3px;color:${x.vetoed?'var(--red)':(x.decision==='AUTO_SUGGEST'?'var(--green)':'var(--gold-tx)')}">
+        ${x.vetoed?'✕ Do not merge':(x.decision==='AUTO_SUGGEST'?'✓ Recommend merge':'⏸ Send to a steward')}</b>
+      <span style="font-size:12.5px">${x.reason}.${x.vetoed?' High textual similarity, but a specification that identifies the part disagrees — the text score is overruled, not averaged away.':''}</span>
+    </div>`;
   if(x.review){
     html += `<div class="hint" style="margin-top:6px">Already actioned: <b>${x.review.action}</b> by ${x.review.steward}${x.review.note?` — "${x.review.note}"`:''}</div>`;
   } else if(!x.vetoed) {
@@ -407,6 +476,61 @@ async function loadAudit(){
       <td class="mono">${r.record_a} ↔ ${r.record_b}</td>
       <td>${r.detail||''}</td>
     </tr>`).join('')}</tbody></table>`;
+}
+
+// ---------------- performance ----------------
+let PERF = null;
+async function loadPerformance(){
+  if(!PERF){
+    try{ PERF = await api('/api/performance'); }
+    catch(e){ document.getElementById('sweepNote').textContent =
+      'No locked holdout run found — run `make demo` first.'; return; }
+    const idx = PERF.sweep.findIndex(r=>Math.abs(r.threshold - PERF.chosen) < 1e-9);
+    document.getElementById('tSlider').value = idx >= 0 ? idx : 12;
+    document.getElementById('tSlider').addEventListener('input', renderSweep);
+  }
+  renderSweep();
+
+  const lc = PERF.holdout.layer_c, la = PERF.holdout.layer_a, hn = PERF.holdout.hard_negatives;
+  document.getElementById('holdoutCards').innerHTML = [
+    ['Auto-suggest precision', pct(lc.auto_suggest_precision), lc.false_merges_proposed+' wrong of '+lc.auto_suggest_pairs.toLocaleString()],
+    ['Coverage', pct(lc.coverage), 'of true duplicates in the split'],
+    ['Recall @ 20', pct(la.recall_at_20), 'true pairs that reached the scorer'],
+    ['Records needing a human', pct(lc.pct_records_needing_review), lc.records_needing_review.toLocaleString()+' of '+lc.records.toLocaleString()],
+    ['Run once, on', PERF.holdout.run_at.slice(0,10), 'at threshold '+PERF.holdout.threshold],
+  ].map(([k,v,sub])=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`).join('');
+
+  document.getElementById('baselineTable').innerHTML =
+    `<thead><tr><th>Method</th><th>Operating point</th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead><tbody>` +
+    Object.entries(PERF.holdout.layer_b).map(([name,m])=>
+      `<tr style="${/SAMANVAY/.test(name)?'background:var(--blue-lt);font-weight:600':''}">
+        <td>${name}</td><td class="mono">${m.t.toFixed(2)}</td><td class="mono">${pct(m.precision)}</td>
+        <td class="mono">${pct(m.recall)}</td><td class="mono">${m.f1.toFixed(4)}</td></tr>`).join('') + '</tbody>';
+
+  document.getElementById('vetoTable').innerHTML =
+    `<thead><tr><th>Planted hard negatives — one specification apart, near-identical text</th><th>Result</th></tr></thead><tbody>
+     <tr><td>Reached the scorer</td><td class="mono">${hn.reached_scorer} of ${hn.hard_negatives}</td></tr>
+     <tr><td>Rejected by SAMANVAY</td><td class="mono">${pct(hn.rejection_rate)}</td></tr>
+     <tr><td>Rejected with the veto switched off</td><td class="mono">${pct(hn.rejection_rate_without_veto)}</td></tr>
+     <tr><td>Would have been merged without the veto</td><td class="mono">${hn.would_pass_without_veto}</td></tr></tbody>`;
+}
+function renderSweep(){
+  const row = PERF.sweep[+document.getElementById('tSlider').value];
+  const chosen = Math.abs(row.threshold - PERF.chosen) < 1e-9;
+  document.getElementById('tVal').textContent = row.threshold.toFixed(2);
+  document.getElementById('sweepMetrics').innerHTML = [
+    ['Auto-suggest precision', pct(row.auto_precision)],
+    ['Coverage', pct(row.coverage)],
+    ['Pairs auto-suggested', row.auto_pairs.toLocaleString()],
+    ['Wrong merges proposed', row.false_merges.toLocaleString()],
+    ['Records sent to a human', pct(row.pct_review)],
+  ].map(([k,v])=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+  const need = PERF.floor + PERF.margin;
+  document.getElementById('sweepNote').innerHTML = chosen
+    ? `<b style="color:var(--navy)">This is the chosen operating point.</b> ${PERF.justification}`
+    : (row.auto_precision >= need
+      ? `At ${row.threshold.toFixed(2)} validation precision clears the ${need.toFixed(2)} bar, but it is not the lowest threshold that does — and a higher cut buys precision by giving up coverage.`
+      : `At ${row.threshold.toFixed(2)} validation precision is ${pct(row.auto_precision)}, under the ${need.toFixed(2)} bar (${PERF.floor} target + ${PERF.margin} headroom for the validation-to-test gap). Selecting here would propose ${row.false_merges.toLocaleString()} wrong merges on validation alone.`);
 }
 
 loadStats();

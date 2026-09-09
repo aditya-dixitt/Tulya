@@ -25,7 +25,7 @@ import tableio
 from engine.normalize import normalize
 from engine.attributes import extract, compare
 from engine.fuzzy import token_set_ratio
-from engine.score import fuse, T_DISCARD, T_AUTO
+from engine.score import fuse, T_DISCARD, T_AUTO, W_COS, W_FUZ, W_ATTR
 from engine.explain import explain
 
 import store
@@ -113,7 +113,29 @@ def enrich_pair_row(row):
                 fuz=round(float(row.fuz), 4),
                 attr=(round(float(row.attr), 4) if pd.notna(row.attr) else None),
                 coverage=int(row.coverage), decision=row.decision,
+                priority=priority_of(row),
                 record_a=row_dict(a), record_b=row_dict(b))
+
+
+# value at stake per record - qty x unit value, straight from the source rows
+SPEND = (RECS.qty * RECS.unit_value)
+
+
+def priority_of(row):
+    """Which pairs deserve a steward's attention first.
+
+    Three real signals: how close the score sits to the operating threshold
+    (a marginal call), how few specifications were readable on both sides
+    (thin evidence), and the money riding on the two records. Mirrors
+    api/export_static_demo.py so the live console and the shipped demo rank
+    identically.
+    """
+    score = float(row.score)
+    uncertainty = max(0.0, 1.0 - abs(score - T_AUTO) / (T_AUTO - T_DISCARD))
+    thin = 1.0 / (1.0 + int(row.coverage))
+    value = float(SPEND.get(int(row.a), 0.0) + SPEND.get(int(row.b), 0.0))
+    return dict(uncertainty=round(uncertainty, 3), thin_evidence=round(thin, 3),
+                value_raw=round(value, 2))
 
 
 # ---- static console --------------------------------------------------------
@@ -152,6 +174,36 @@ def api_stats():
         threshold=dict(t_auto=T_AUTO, t_discard=T_DISCARD,
                         chosen=THRESH_INFO.get("chosen_threshold", T_AUTO),
                         justification=THRESH_INFO.get("justification", "")),
+    )))
+
+
+# ---- performance: how the threshold was chosen, and what it returned --------
+@app.route("/api/performance")
+def api_performance():
+    """Everything needed to defend the operating point, read from the files the
+    pipeline already wrote — the validation sweep the threshold was selected
+    from, the once-only holdout result, the baseline comparison, and the score
+    distribution across every candidate pair."""
+    holdout_path = OUT / "holdout_run.json"
+    if not holdout_path.exists():
+        return jsonify(error="no locked holdout run yet - run `make demo` first"), 404
+    holdout = json.loads(holdout_path.read_text())
+    r = holdout["result"]
+
+    live = PAIRS[~PAIRS.vetoed]
+    edges = [round(x * 0.05, 2) for x in range(21)]
+    counts = np.histogram(live.score.to_numpy(), bins=edges)[0].tolist()
+
+    return jsonify(_native(dict(
+        sweep=THRESH_INFO.get("table", []),
+        chosen=THRESH_INFO.get("chosen_threshold", T_AUTO),
+        floor=THRESH_INFO.get("precision_floor"), margin=THRESH_INFO.get("val_margin"),
+        justification=THRESH_INFO.get("justification", ""),
+        holdout=dict(run_at=holdout["run_at"], threshold=holdout["threshold"],
+                     layer_a=r["layer_a"], layer_b=r["layer_b"], layer_c=r["layer_c"],
+                     hard_negatives=r["hard_negatives"], ambiguity=r["ambiguity"]),
+        distribution=dict(edges=edges, counts=counts, total=int(len(live))),
+        weights=dict(cos=W_COS, fuz=W_FUZ, attr=W_ATTR),
     )))
 
 
