@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAMANVAY — Steward Console</title>
+<style>
+  :root{
+    --navy:#12283F; --blue:#1F6FB2; --blue-lt:#E9F1F8;
+    --teal:#2A7A87; --teal-lt:#E8F2F3;
+    --gold:#C08A2E; --gold-lt:#FAF2E3; --gold-tx:#8A6218;
+    --green:#2E7D5B; --green-lt:#E9F3EE;
+    --grey:#6B7A88; --grey-lt:#F5F7F9;
+    --ink:#1F2A36; --red:#B5473A; --red-lt:#FAEDEB;
+    --border:#DCE4EA; --white:#fff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--grey-lt);color:var(--ink);
+       font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:14px}
+  header{background:var(--navy);color:#fff;padding:14px 22px;display:flex;
+         align-items:center;justify-content:space-between}
+  header .brand{display:flex;align-items:baseline;gap:10px}
+  header .brand b{font-size:17px;letter-spacing:.5px}
+  header .brand span{font-size:12px;color:#9FB3C8}
+  header .badge{font-size:11px;background:#1F6FB2;padding:3px 9px;border-radius:10px}
+  nav{display:flex;gap:2px;background:#fff;border-bottom:1px solid var(--border);
+      padding:0 18px;overflow-x:auto}
+  nav button{border:none;background:none;padding:12px 16px;font-size:13.5px;font-weight:600;
+             color:var(--grey);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+  nav button.active{color:var(--navy);border-bottom-color:var(--blue)}
+  nav button .n{display:inline-block;margin-left:6px;background:var(--blue-lt);color:var(--blue);
+                border-radius:9px;padding:1px 7px;font-size:11px;font-weight:700}
+  main{padding:20px 22px;max-width:1280px;margin:0 auto}
+  .panel{display:none}
+  .panel.active{display:block}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+  .card .k{font-size:11.5px;color:var(--grey);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+  .card .v{font-size:22px;font-weight:700;color:var(--navy)}
+  .card .sub{font-size:11.5px;color:var(--grey);margin-top:3px}
+  .section-title{font-size:13px;font-weight:700;color:var(--navy);text-transform:uppercase;
+                 letter-spacing:.4px;margin:22px 0 10px}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--border);
+        border-radius:10px;overflow:hidden}
+  th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--grey);
+     background:var(--grey-lt);padding:9px 12px;border-bottom:1px solid var(--border)}
+  td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:top}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#FAFCFE}
+  .mono{font-family:"SF Mono",Consolas,monospace;font-size:12px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:9px;font-size:11px;font-weight:700}
+  .pill.review{background:var(--gold-lt);color:var(--gold-tx)}
+  .pill.auto{background:var(--blue-lt);color:var(--blue)}
+  .pill.vetoed{background:var(--red-lt);color:var(--red)}
+  .pill.approve{background:var(--green-lt);color:var(--green)}
+  .pill.reject{background:var(--red-lt);color:var(--red)}
+  .pill.unmerge{background:var(--gold-lt);color:var(--gold-tx)}
+  .btn{border:none;border-radius:6px;padding:7px 13px;font-size:12.5px;font-weight:700;
+       cursor:pointer;margin-right:6px}
+  .btn.approve{background:var(--green);color:#fff}
+  .btn.reject{background:var(--red);color:#fff}
+  .btn.ghost{background:#fff;border:1px solid var(--border);color:var(--navy)}
+  .btn.small{padding:4px 9px;font-size:11.5px}
+  .btn:disabled{opacity:.45;cursor:default}
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .col{flex:1;min-width:280px}
+  .empty{padding:30px;text-align:center;color:var(--grey);font-size:13px;background:#fff;
+         border:1px dashed var(--border);border-radius:10px}
+  .searchbar{display:flex;gap:8px;margin-bottom:16px}
+  .searchbar input{flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font-size:14px}
+  .searchbar button{padding:10px 18px;border:none;border-radius:8px;background:var(--blue);
+                    color:#fff;font-weight:700;cursor:pointer}
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(18,40,63,.45);z-index:50;
+            align-items:flex-start;justify-content:center;padding:4vh 16px;overflow-y:auto}
+  .modal-bg.open{display:flex}
+  .modal{background:#fff;border-radius:12px;max-width:720px;width:100%;padding:22px 26px;margin-top:2vh}
+  .modal h3{margin:0 0 4px;color:var(--navy)}
+  .modal .close{float:right;cursor:pointer;color:var(--grey);font-size:20px;line-height:1}
+  .sig-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .attr-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px}
+  .attr-row .k{font-family:monospace;color:var(--grey)}
+  .attr-row.match .v{color:var(--green)}
+  .attr-row.mismatch .v{color:var(--red)}
+  .attr-row.unknown .v{color:var(--grey)}
+  .desc-pair{background:var(--grey-lt);border-radius:8px;padding:10px 12px;margin:10px 0;font-size:12.5px}
+  .desc-pair div{margin:3px 0}
+  .toast{position:fixed;bottom:20px;right:20px;background:var(--navy);color:#fff;padding:10px 18px;
+         border-radius:8px;font-size:13px;z-index:100;opacity:0;transition:opacity .2s}
+  .toast.show{opacity:1}
+  .pager{display:flex;gap:8px;justify-content:center;margin-top:12px}
+  .note-field{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;
+              font-size:12.5px;margin-top:8px;font-family:inherit}
+  .foot{color:var(--grey);font-size:11.5px;margin-top:4px}
+  .steward-input{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;width:140px}
+  .hint{color:var(--grey);font-size:12px;margin-bottom:10px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><b>SAMANVAY</b><span>steward console — material code deduplication</span></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="badge" id="engineBadge">loading…</span>
+    <input class="steward-input" id="stewardName" placeholder="your name" value="steward_demo"
+           style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);color:#fff">
+  </div>
+</header>
+
+<nav>
+  <button data-p="overview" class="active">Overview</button>
+  <button data-p="queue">Review Queue <span class="n" id="nQueue">–</span></button>
+  <button data-p="auto">Auto-Suggest <span class="n" id="nAuto">–</span></button>
+  <button data-p="groups">Golden Records <span class="n" id="nGroups">–</span></button>
+  <button data-p="search">Search</button>
+  <button data-p="audit">Audit Log</button>
+</nav>
+
+<main>
+
+  <!-- OVERVIEW -->
+  <div class="panel active" id="p-overview">
+    <div class="cards" id="overviewCards"></div>
+    <div class="row">
+      <div class="col">
+        <div class="section-title">What this console is</div>
+        <div class="card" style="font-size:13px;line-height:1.6">
+          Every record here comes from the <b>locked test split</b> — the same holdout
+          RESULTS.md reports numbers against. Nothing is auto-merged: the engine only ever
+          <i>proposes</i> pairs (auto-suggest ≥ 0.92, review 0.75–0.92). A golden record only
+          forms when a named steward clicks approve, and every approve / reject / un-merge is
+          written to the audit log below. This is exactly the two-sided design the sprint plan
+          called for: the model narrows 24.4M possible pairs to ~147k candidates and ranks them,
+          a human keeps the merge authority.
+        </div>
+      </div>
+      <div class="col">
+        <div class="section-title">Engine backends in this run</div>
+        <div class="card" style="font-size:13px;line-height:1.9" id="engineCard">…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUEUE -->
+  <div class="panel" id="p-queue">
+    <div class="section-title">Steward review queue — score in the 0.75–0.92 band</div>
+    <div class="hint">Sorted highest score first. Approve merges the pair into a golden record; reject marks it a confirmed non-match.</div>
+    <div id="queueList"></div>
+    <div class="pager"><button class="btn ghost small" id="queueMore">Load more</button></div>
+  </div>
+
+  <!-- AUTO SUGGEST -->
+  <div class="panel" id="p-auto">
+    <div class="section-title">Auto-suggested pairs — score ≥ 0.92</div>
+    <div class="hint">Pre-ranked by the engine as high-confidence. Still needs a steward's sign-off before it becomes a golden record — nothing here has merged itself.</div>
+    <div id="autoList"></div>
+    <div class="pager"><button class="btn ghost small" id="autoMore">Load more</button></div>
+  </div>
+
+  <!-- GROUPS -->
+  <div class="panel" id="p-groups">
+    <div class="section-title">Golden records formed so far</div>
+    <div class="hint">Every group here exists only because a steward approved every edge connecting it. Click a member to split it back out (un-merge).</div>
+    <div id="groupsList"></div>
+  </div>
+
+  <!-- SEARCH -->
+  <div class="panel" id="p-search">
+    <div class="section-title">Live search — same engine, arbitrary query</div>
+    <div class="searchbar">
+      <input id="searchInput" placeholder='try "hex bolt 12mm stainless" or "ball valve 2 inch 600"'>
+      <button id="searchBtn">Search</button>
+    </div>
+    <div id="searchMeta" class="hint"></div>
+    <div id="searchResults"></div>
+  </div>
+
+  <!-- AUDIT -->
+  <div class="panel" id="p-audit">
+    <div class="section-title">Audit log</div>
+    <div class="hint">Append-only. Every approve / reject / un-merge a steward makes, in this session.</div>
+    <div id="auditList"></div>
+  </div>
+
+</main>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <span class="close" id="modalClose">&times;</span>
+    <div id="modalBody">…</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';
+let queueOffset = 0, autoOffset = 0;
+const PAGE = 15;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function steward(){ return document.getElementById('stewardName').value.trim() || 'steward_demo'; }
+
+function switchPanel(name){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.p===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active', p.id==='p-'+name));
+  if(name==='queue') loadQueue(true);
+  if(name==='auto') loadAuto(true);
+  if(name==='groups') loadGroups();
+  if(name==='audit') loadAudit();
+}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click', ()=>switchPanel(b.dataset.p)));
+
+async function api(path, opts){
+  const r = await fetch(API+path, opts);
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+function pct(x){ return (x*100).toFixed(1)+'%'; }
+
+// ---------------- overview ----------------
+async function loadStats(){
+  const s = await api('/api/stats');
+  document.getElementById('nQueue').textContent = s.review_queue.remaining;
+  document.getElementById('nAuto').textContent = s.auto_suggest_queue.remaining;
+  document.getElementById('nGroups').textContent = s.groups_formed;
+  document.getElementById('engineBadge').textContent =
+    `${s.engine.encoder_backend} · ${s.engine.index_backend} · ${s.engine.fuzzy_backend}`;
+
+  const cards = [
+    ['Test-split records', s.records, `${s.pairs_scored.toLocaleString()} candidate pairs scored`],
+    ['Auto-suggest queue', s.auto_suggest_queue.remaining, `of ${s.auto_suggest_queue.total} total, ${s.auto_suggest_queue.confirmed_or_rejected} actioned`],
+    ['Steward review queue', s.review_queue.remaining, `of ${s.review_queue.total} total, ${s.review_queue.actioned} actioned`],
+    ['Golden records formed', s.groups_formed, `${s.records_grouped} records merged so far`],
+    ['Vetoed (hard-key conflict)', s.decision_counts.REJECTED_VETO?.toLocaleString() || 0, 'never shown to a steward'],
+    ['Operating threshold', s.threshold.chosen, `auto-suggest ≥ ${s.threshold.chosen}, discard < ${s.threshold.t_discard}`],
+  ];
+  document.getElementById('overviewCards').innerHTML = cards.map(([k,v,sub])=>
+    `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${sub}</div></div>`
+  ).join('');
+
+  document.getElementById('engineCard').innerHTML = `
+    <div>encoder &nbsp;<b class="mono">${s.engine.encoder_backend}</b></div>
+    <div>ANN index &nbsp;<b class="mono">${s.engine.index_backend}</b></div>
+    <div>fuzzy match &nbsp;<b class="mono">${s.engine.fuzzy_backend}</b></div>
+    <div>reduction ratio &nbsp;<b class="mono">${pct(s.engine.reduction_ratio)}</b> of all possible pairs discarded before scoring</div>
+    <div style="margin-top:8px;color:var(--grey);font-size:12px">${s.threshold.justification}</div>
+  `;
+}
+
+// ---------------- queue / auto-suggest ----------------
+function pairCardHTML(it, kind){
+  const a = it.record_a, b = it.record_b;
+  const pillClass = kind==='auto' ? 'auto' : 'review';
+  return `<div class="card" style="margin-bottom:10px" data-a="${it.a}" data-b="${it.b}">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span class="pill ${pillClass}">${it.decision} · score ${it.score}</span>
+      <span class="mono" style="color:var(--grey);font-size:11.5px">coverage ${it.coverage} · cos ${it.cos} · fuz ${it.fuz}</span>
+    </div>
+    <div class="desc-pair">
+      <div><b>${a.cpse}</b> · <span class="mono">${a.legacy_code}</span> — ${a.description}</div>
+      <div><b>${b.cpse}</b> · <span class="mono">${b.legacy_code}</span> — ${b.description}</div>
+    </div>
+    <button class="btn ghost small" onclick="openExplain(${it.a},${it.b})">why?</button>
+    <button class="btn approve small" onclick="decide(${it.a},${it.b},'approve','${kind}')">approve</button>
+    <button class="btn reject small" onclick="decide(${it.a},${it.b},'reject','${kind}')">reject</button>
+  </div>`;
+}
+
+async function loadQueue(reset){
+  if(reset) queueOffset = 0;
+  const d = await api(`/api/queue?limit=${PAGE}&offset=${queueOffset}`);
+  const el = document.getElementById('queueList');
+  if(reset) el.innerHTML = '';
+  if(!d.items.length && reset){ el.innerHTML = '<div class="empty">Queue is empty — every review-band pair has been actioned.</div>'; }
+  el.innerHTML += d.items.map(it=>pairCardHTML(it,'queue')).join('');
+  queueOffset += d.items.length;
+  document.getElementById('queueMore').style.display = d.items.length < PAGE ? 'none':'inline-block';
+}
+async function loadAuto(reset){
+  if(reset) autoOffset = 0;
+  const d = await api(`/api/auto-suggest?limit=${PAGE}&offset=${autoOffset}`);
+  const el = document.getElementById('autoList');
+  if(reset) el.innerHTML = '';
+  if(!d.items.length && reset){ el.innerHTML = '<div class="empty">No auto-suggest pairs left to confirm.</div>'; }
+  el.innerHTML += d.items.map(it=>pairCardHTML(it,'auto')).join('');
+  autoOffset += d.items.length;
+  document.getElementById('autoMore').style.display = d.items.length < PAGE ? 'none':'inline-block';
+}
+document.getElementById('queueMore').addEventListener('click', ()=>loadQueue(false));
+document.getElementById('autoMore').addEventListener('click', ()=>loadAuto(false));
+
+async function decide(a,b,action,kind){
+  await api(`/api/pair/${a}/${b}/${action}`, {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({steward: steward()})});
+  toast(action==='approve' ? `Approved ${a}↔${b} — merged into a golden record` : `Rejected ${a}↔${b}`);
+  const card = document.querySelector(`[data-a="${a}"][data-b="${b}"]`);
+  if(card) card.remove();
+  loadStats();
+}
+
+// ---------------- explain modal ----------------
+async function openExplain(a,b){
+  const x = await api(`/api/pair/${a}/${b}/explain`);
+  const verdictClass = v => v==='MATCH'?'match':(v==='MISMATCH'?'mismatch':'unknown');
+  const verdictMark = v => v==='MATCH'?'✓':(v==='MISMATCH'?'✕':'?');
+  let html = `<h3>${x.vetoed ? 'Match rejected' : 'Match recommendation'}</h3>
+    <div class="desc-pair">
+      <div><b>${x.a.cpse}</b> · <span class="mono">${x.a.code}</span> — ${x.a.text}</div>
+      <div><b>${x.b.cpse}</b> · <span class="mono">${x.b.code}</span> — ${x.b.text}</div>
+    </div>
+    <div style="font-weight:700;font-size:12px;color:var(--grey);margin-top:14px">SIGNALS</div>`;
+  x.signals.forEach(s=>{
+    html += `<div class="sig-row"><span>${s.name}</span><span class="mono">${s.value.toFixed(3)} × ${s.weight}</span></div>`;
+  });
+  html += `<div style="font-weight:700;font-size:12px;color:var(--grey);margin-top:14px">HARD-KEY ATTRIBUTES</div>`;
+  if(!x.attributes.length){ html += `<div class="hint">No shared hard-key attributes extracted on either side.</div>`; }
+  x.attributes.forEach(at=>{
+    const val = at.verdict==='MISMATCH' ? `${at.a ?? '—'} vs ${at.b ?? '—'}` : (at.a ?? at.b ?? '—');
+    html += `<div class="attr-row ${verdictClass(at.verdict)}"><span class="k">${verdictMark(at.verdict)} ${at.key}</span><span class="v mono">${val}</span></div>`;
+  });
+  html += `<div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+      <div class="sig-row"><span>Coverage</span><span>${x.coverage} hard key(s) known on both sides</span></div>
+      <div class="sig-row" style="font-weight:700"><span>Final score</span><span class="mono">${x.score.toFixed(3)}</span></div>
+      <div class="sig-row"><span>Decision</span><span class="pill ${x.vetoed?'vetoed':(x.decision==='AUTO_SUGGEST'?'auto':'review')}">${x.decision}</span></div>
+    </div>
+    <div class="hint" style="margin-top:8px">${x.reason}</div>`;
+  if(x.review){
+    html += `<div class="hint" style="margin-top:6px">Already actioned: <b>${x.review.action}</b> by ${x.review.steward}${x.review.note?` — "${x.review.note}"`:''}</div>`;
+  } else if(!x.vetoed) {
+    html += `<div style="margin-top:14px">
+      <button class="btn approve" onclick="decide(${a},${b},'approve','modal');closeModal()">approve</button>
+      <button class="btn reject" onclick="decide(${a},${b},'reject','modal');closeModal()">reject</button>
+    </div>`;
+  }
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalBg').classList.add('open');
+}
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('modalBg').addEventListener('click', e=>{ if(e.target.id==='modalBg') closeModal(); });
+function closeModal(){ document.getElementById('modalBg').classList.remove('open'); }
+
+// ---------------- groups ----------------
+async function loadGroups(){
+  const d = await api('/api/groups');
+  const el = document.getElementById('groupsList');
+  if(!d.groups.length){ el.innerHTML = '<div class="empty">No golden records yet — approve a pair in the Review Queue or Auto-Suggest tab to form the first one.</div>'; return; }
+  el.innerHTML = d.groups.map(g=>`
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><span class="pill auto">${g.group_id}</span> <b style="margin-left:8px">${g.category}</b>
+             <span class="hint" style="display:inline">· ${g.size} legacy codes across ${g.cpses.join(', ')}</span></div>
+      </div>
+      <div class="hint" style="margin-top:8px;margin-bottom:2px">CANONICAL DESCRIPTION</div>
+      <div class="desc-pair"><div><b>${g.canonical.cpse}</b> · <span class="mono">${g.canonical.legacy_code}</span> — ${g.canonical.description}</div></div>
+      <div class="hint" style="margin-top:8px;margin-bottom:2px">MEMBER LEGACY CODES</div>
+      <table><tbody>
+      ${g.members.map(m=>`<tr>
+        <td><b>${m.cpse}</b></td><td class="mono">${m.legacy_code}</td><td>${m.description}${m.is_canonical?' <span class="pill approve" style="margin-left:4px">canonical</span>':''}</td>
+        <td style="text-align:right"><button class="btn ghost small" onclick="unmerge('${g.group_id}',${m.record_id})">split out</button></td>
+      </tr>`).join('')}
+      </tbody></table>
+    </div>
+  `).join('');
+}
+async function unmerge(gid, recordId){
+  const note = prompt('Reason for un-merging this record (optional):') || '';
+  const d = await api(`/api/groups/${gid}/unmerge`, {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({record_id: recordId, steward: steward(), note})});
+  toast(`Split record ${recordId} out — ${d.edges_removed} approved edge(s) removed`);
+  loadGroups(); loadStats();
+}
+
+// ---------------- search ----------------
+async function doSearch(){
+  const q = document.getElementById('searchInput').value.trim();
+  if(!q) return;
+  const d = await api('/api/search?q='+encodeURIComponent(q)+'&k=8');
+  document.getElementById('searchMeta').innerHTML =
+    `normalised → <span class="mono">${d.normalised}</span> &nbsp;·&nbsp; extracted →
+     <span class="mono">${JSON.stringify(d.extracted_attrs)}</span>`;
+  const el = document.getElementById('searchResults');
+  if(!d.results.length){ el.innerHTML = '<div class="empty">No non-vetoed candidates found for this query.</div>'; return; }
+  el.innerHTML = `<table><thead><tr><th>Score</th><th>Decision</th><th>CPSE</th><th>Legacy code</th><th>Description</th></tr></thead><tbody>
+    ${d.results.map(r=>`<tr>
+      <td class="mono">${r.score}</td>
+      <td><span class="pill ${r.decision==='AUTO_SUGGEST'?'auto':'review'}">${r.decision}</span></td>
+      <td>${r.cpse}</td><td class="mono">${r.legacy_code}</td><td>${r.description}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+document.getElementById('searchBtn').addEventListener('click', doSearch);
+document.getElementById('searchInput').addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+
+// ---------------- audit ----------------
+async function loadAudit(){
+  const d = await api('/api/audit?limit=200');
+  const el = document.getElementById('auditList');
+  if(!d.items.length){ el.innerHTML = '<div class="empty">No steward actions yet this session.</div>'; return; }
+  el.innerHTML = `<table><thead><tr><th>When</th><th>Action</th><th>Steward</th><th>Pair</th><th>Note</th></tr></thead><tbody>
+    ${d.items.map(r=>`<tr>
+      <td class="hint">${new Date(r.ts*1000).toLocaleTimeString()}</td>
+      <td><span class="pill ${r.action}">${r.action}</span></td>
+      <td>${r.steward||'—'}</td>
+      <td class="mono">${r.record_a} ↔ ${r.record_b}</td>
+      <td>${r.detail||''}</td>
+    </tr>`).join('')}</tbody></table>`;
+}
+
+loadStats();
+setInterval(loadStats, 8000);
+</script>
+</body>
+</html>

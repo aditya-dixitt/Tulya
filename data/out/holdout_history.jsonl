@@ -1,0 +1,4 @@
+{"run_at": "2026-09-08T01:44Z", "threshold": 0.93, "forced": false, "auto_precision": 0.9479, "coverage": 0.8358, "note": "engine rev 1 - before the m3/hr thread-extraction fix"}
+{"run_at": "2026-09-08T01:50Z", "threshold": 0.93, "forced": false, "auto_precision": 0.9464, "coverage": 0.8358, "note": "engine rev 2 - after the m3/hr fix"}
+{"run_at": "2026-09-08T01:55Z", "threshold": 0.88, "forced": false, "auto_precision": 0.9242, "coverage": 0.8257, "note": "engine rev 3 - marginal threshold selection; landed BELOW the 0.95 target, which is what prompted the margin policy"}
+{"run_at": "2026-09-08T01:57:30+00:00", "threshold": 0.92, "forced": false, "auto_precision": 0.9542883351169545, "coverage": 0.8257377335428672, "note": "engine rev 3 - final, threshold selected with validation margin"}

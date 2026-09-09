@@ -1,0 +1,33 @@
+{
+  "seed": 20260908,
+  "families": 10000,
+  "clusters": 12000,
+  "records": 46567,
+  "split_counts": {
+    "dev": 32713,
+    "test": 6995,
+    "val": 6859
+  },
+  "holdout_recipes": [
+    "abbrev+reorder+units+case",
+    "abbrev+units+separator+typo",
+    "reorder+drop+abbrev+case",
+    "abbrev+noise+truncate",
+    "units+reorder+vendor+typo",
+    "abbrev+separator+drop+case"
+  ],
+  "common_recipes": [
+    "case",
+    "abbrev+case",
+    "units+case",
+    "reorder+case",
+    "abbrev+separator",
+    "noise+case",
+    "units+separator",
+    "abbrev+units",
+    "typo+case",
+    "vendor+case",
+    "abbrev+reorder",
+    "drop+case"
+  ]
+}

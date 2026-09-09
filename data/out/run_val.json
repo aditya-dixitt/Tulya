@@ -1,0 +1,31 @@
+{
+  "split": "val",
+  "records": 6859,
+  "all_pairs": 23519511,
+  "candidate_pairs": 144175,
+  "reduction_ratio": 0.9938699830961621,
+  "encoder": "tfidf-svd",
+  "index": "numpy-exact",
+  "fuzzy": "difflib",
+  "topk": 20,
+  "blocks": {
+    "used_blocks": 464,
+    "keyed_records": 6797,
+    "global_records": 62,
+    "largest_block": 208,
+    "avg_keys_per_record": 2.15
+  },
+  "timings": {
+    "prepare": 0.42568469047546387,
+    "embed": 0.31150054931640625,
+    "retrieve": 0.3028404712677002,
+    "score": 8.598169565200806,
+    "total": 11.711628913879395
+  },
+  "decisions": {
+    "REJECTED_VETO": 131551,
+    "AUTO_SUGGEST": 7412,
+    "REVIEW": 4036,
+    "DISCARD": 1176
+  }
+}

@@ -1,0 +1,28 @@
+# Unit canonicalisation. The engine rewrites every variant to the canonical token.
+length_mm:
+  canonical: mm
+  variants: ["mm", "m.m.", "millimetre", "millimeter"]
+length_cm:
+  canonical: cm
+  variants: ["cm", "c.m.", "centimetre", "centimeter"]
+length_m:
+  canonical: m
+  variants: ["mtr", "meter", "metre", "mts"]
+inch:
+  canonical: inch
+  variants: ["\"", "in", "inches", "inch", "nb", "n.b.", "nominal bore"]
+mass_kg:
+  canonical: kg
+  variants: ["kg", "k.g.", "kilogram", "kgs"]
+count:
+  canonical: nos
+  variants: ["nos", "no", "no.", "nr", "pcs", "pieces", "each", "ea"]
+area_sqmm:
+  canonical: sqmm
+  variants: ["sqmm", "sq mm", "sq.mm", "mm2", "mm^2", "sq. mm"]
+power_kw:
+  canonical: kw
+  variants: ["kw", "k.w.", "kilowatt"]
+volt_kv:
+  canonical: kv
+  variants: ["kv", "k.v.", "kilovolt"]

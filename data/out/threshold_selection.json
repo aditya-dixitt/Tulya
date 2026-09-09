@@ -1,0 +1,170 @@
+{
+  "split": "val",
+  "precision_floor": 0.95,
+  "val_margin": 0.03,
+  "chosen_threshold": 0.92,
+  "floor_met": true,
+  "table": [
+    {
+      "threshold": 0.8,
+      "auto_precision": 0.9042533603387958,
+      "auto_pairs": 10862,
+      "false_merges": 1040,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.11094911794722263
+    },
+    {
+      "threshold": 0.81,
+      "auto_precision": 0.9066169617893756,
+      "auto_pairs": 10730,
+      "false_merges": 1002,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.13310978276716723
+    },
+    {
+      "threshold": 0.82,
+      "auto_precision": 0.909616295594505,
+      "auto_pairs": 10555,
+      "false_merges": 954,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.16358069689459104
+    },
+    {
+      "threshold": 0.83,
+      "auto_precision": 0.9176219156790363,
+      "auto_pairs": 10294,
+      "false_merges": 848,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.1962385187345094
+    },
+    {
+      "threshold": 0.84,
+      "auto_precision": 0.9243555290136359,
+      "auto_pairs": 10047,
+      "false_merges": 760,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.2278757836419303
+    },
+    {
+      "threshold": 0.85,
+      "auto_precision": 0.9314326589004701,
+      "auto_pairs": 9786,
+      "false_merges": 671,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.2644700393643388
+    },
+    {
+      "threshold": 0.86,
+      "auto_precision": 0.9388614121856256,
+      "auto_pairs": 9503,
+      "false_merges": 581,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.2975652427467561
+    },
+    {
+      "threshold": 0.87,
+      "auto_precision": 0.948063284233497,
+      "auto_pairs": 9165,
+      "false_merges": 476,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.33561743694416096
+    },
+    {
+      "threshold": 0.88,
+      "auto_precision": 0.9524292638935858,
+      "auto_pairs": 8871,
+      "false_merges": 422,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.3714827234290713
+    },
+    {
+      "threshold": 0.89,
+      "auto_precision": 0.9632930690747039,
+      "auto_pairs": 8527,
+      "false_merges": 313,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.40647324682898384
+    },
+    {
+      "threshold": 0.9,
+      "auto_precision": 0.9698750918442322,
+      "auto_pairs": 8166,
+      "false_merges": 246,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.44642076104388395
+    },
+    {
+      "threshold": 0.91,
+      "auto_precision": 0.9796365511019461,
+      "auto_pairs": 7759,
+      "false_merges": 158,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.4929289983962677
+    },
+    {
+      "threshold": 0.92,
+      "auto_precision": 0.9826472962066183,
+      "auto_pairs": 7434,
+      "false_merges": 129,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.5276279341011809
+    },
+    {
+      "threshold": 0.93,
+      "auto_precision": 0.9898876404494382,
+      "auto_pairs": 7120,
+      "false_merges": 72,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.5541624143461146
+    },
+    {
+      "threshold": 0.94,
+      "auto_precision": 0.9949238578680203,
+      "auto_pairs": 6698,
+      "false_merges": 34,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.5923604023910191
+    },
+    {
+      "threshold": 0.95,
+      "auto_precision": 0.9974898023219329,
+      "auto_pairs": 6374,
+      "false_merges": 16,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.6213733780434466
+    },
+    {
+      "threshold": 0.96,
+      "auto_precision": 1.0,
+      "auto_pairs": 6111,
+      "false_merges": 0,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.6495115906108763
+    },
+    {
+      "threshold": 0.97,
+      "auto_precision": 1.0,
+      "auto_pairs": 5938,
+      "false_merges": 0,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.6636535938183409
+    },
+    {
+      "threshold": 0.98,
+      "auto_precision": 1.0,
+      "auto_pairs": 5886,
+      "false_merges": 0,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.6674442338533314
+    },
+    {
+      "threshold": 0.99,
+      "auto_precision": 1.0,
+      "auto_pairs": 5811,
+      "false_merges": 0,
+      "coverage": 0.9118042484538854,
+      "pct_review": 0.6725470185158187
+    }
+  ],
+  "justification": "Lowest threshold whose validation auto-suggest precision reaches 0.98 \u2014 the 0.95 operational target plus 0.03 headroom for the validation-to-test gap, since a third of test records use corruption recipes never seen in training. The floor is on precision, not F1, because a wrong merge costs more than a missed one."
+}
