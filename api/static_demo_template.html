@@ -82,6 +82,16 @@
   .twrap{overflow-x:auto;border-radius:var(--radius)}
 
   .mono{font-family:var(--font-mono);font-size:12px}
+  /* plant / site label — secondary to the CPSE, but always visible, because
+     "which of our own sites" is the question a steward actually asks */
+  .site{display:inline-block;font-size:10.5px;color:var(--teal);background:var(--teal-soft);
+        padding:1px 7px;border-radius:8px;font-weight:600;vertical-align:1px}
+  td .site{display:block;margin-top:2px;font-size:10px}
+  .pill.intra{background:var(--teal-soft);color:var(--teal)}
+  .pill.inter{background:var(--surface-2);color:var(--ink-dim)}
+  .canon .src .p{font-size:9.5px;color:var(--teal);margin-top:1px;line-height:1.25}
+  .scopenote{background:var(--teal-soft);border:1px solid #C2DCE0;border-radius:8px;
+             padding:9px 12px;margin-top:10px;font-size:12.5px;color:var(--ink)}
   .pill{display:inline-block;padding:2px 9px;border-radius:9px;font-size:10.5px;font-weight:700;
         letter-spacing:.2px;font-family:var(--font-mono)}
   .pill.review{background:var(--amber-soft);color:var(--amber-ink)}
@@ -301,6 +311,7 @@
       × <b>value at stake</b> (quantity × unit value across both records). Each card shows all three, so
       the ranking can be argued with rather than trusted.
       <br><b id="queueSample"></b></div>
+    <div class="searchbar" id="scopeFilter" style="margin-bottom:14px"></div>
     <div class="prio-strip" id="queueFilter"></div>
     <div id="queueList" style="margin-top:14px"></div>
     <div class="pager"><button class="btn ghost small" id="queueMore">Load more</button></div>
@@ -418,7 +429,7 @@
 const DATA = JSON.parse(document.getElementById('data').textContent);
 const LS_KEY = 'samanvay_demo_state_v2';
 const PAGE = 12;
-let queueShown = PAGE, autoShown = PAGE, queueBand = 'ALL';
+let queueShown = PAGE, autoShown = PAGE, queueBand = 'ALL', queueScope = 'ALL';
 
 function loadState(){
   try{ const raw = localStorage.getItem(LS_KEY); if(raw) return JSON.parse(raw); }catch(e){}
@@ -471,9 +482,15 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;'
   DATA.queue.sort((x,y)=> y.priority.total - x.priority.total);
 })();
 
-function bandCounts(){
+function inScope(it){
+  if(queueScope === 'ALL') return true;
+  return queueScope === 'INTRA' ? it.scope !== 'INTER' : it.scope === 'INTER';
+}
+function bandCounts(scoped){
   const c = {CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0};
-  DATA.queue.filter(it=>!STATE.reviews[pkey(it.a,it.b)]).forEach(it=>c[it.priority.band]++);
+  DATA.queue.filter(it=>!STATE.reviews[pkey(it.a,it.b)])
+            .filter(it=> scoped ? inScope(it) : true)
+            .forEach(it=>c[it.priority.band]++);
   return c;
 }
 
@@ -575,6 +592,8 @@ function renderOverview(){
     ['Rejected on a spec conflict', (DATA.decision_counts.REJECTED_VETO||0).toLocaleString(),
      'never shown to a steward'],
     ['Golden records formed', groups.length, groups.reduce((s,g)=>s+g.size,0)+' records merged by you'],
+    ['Duplicates inside one CPSE', DATA.scope ? pct(DATA.scope.intra/DATA.scope.total) : '–',
+     DATA.scope ? DATA.scope.intra.toLocaleString()+' of '+DATA.scope.total.toLocaleString()+' true pairs, across '+DATA.scope.plants+' plants' : ''],
   ];
   document.getElementById('overviewCards').innerHTML = cards.map(([k,v,sub])=>
     `<div class="card"><div class="k">${k}</div><div class="v tabular">${v}</div><div class="sub">${sub}</div></div>`).join('');
@@ -621,6 +640,20 @@ function confidenceBand(score, decision, coverage){
   if(score >= DATA.threshold.t_discard) return ['MEDIUM', 'amber'];
   return ['LOW', 'bad'];
 }
+function scopeChip(it){
+  if(!it || !it.scope) return '';
+  if(it.scope === 'INTER') return ' <span class="pill inter">ACROSS CPSEs</span>';
+  return ' <span class="pill intra">SAME CPSE · 2 PLANTS</span>';
+}
+function scopeNote(it){
+  if(!it || !it.scope) return '';
+  if(it.scope === 'INTER') return '';
+  const a = RECORDS[it.a], b = RECORDS[it.b];
+  if(!a || !b) return '';
+  return `<div class="scopenote"><b>Both records belong to ${esc(a.cpse)}</b> — ${esc(a.plant)}
+    and ${esc(b.plant)}. This duplicate exists inside one company, between two of its own sites,
+    before any other CPSE is involved.</div>`;
+}
 function pairCardHTML(it, kind){
   const a = it.record_a, b = it.record_b;
   const [bandLbl, barCls] = confidenceBand(it.score, it.decision, it.coverage);
@@ -635,7 +668,7 @@ function pairCardHTML(it, kind){
     </div>` : '';
   return `<div class="pair-card ${kind==='queue' && p ? p.band.toLowerCase() : ''}" data-a="${it.a}" data-b="${it.b}">
     <div class="top">
-      <span>${prioPill}<span class="pill ${kind==='auto'?'auto':'review'}">${esc(it.decision)}</span></span>
+      <span>${prioPill}<span class="pill ${kind==='auto'?'auto':'review'}">${esc(it.decision)}</span>${scopeChip(it)}</span>
       <span class="meta">${(it.score*100).toFixed(1)}% · ${bandLbl}${/HELD/.test(bandLbl)?'':' confidence'}</span>
     </div>
     <div class="barline" style="margin-top:9px">
@@ -643,8 +676,8 @@ function pairCardHTML(it, kind){
       <span class="val">${it.score.toFixed(3)}</span>
     </div>
     <div class="desc-pair">
-      <div><b>${esc(a.cpse)}</b> · <span class="mono">${esc(a.legacy_code)}</span> — ${esc(a.description)}</div>
-      <div><b>${esc(b.cpse)}</b> · <span class="mono">${esc(b.legacy_code)}</span> — ${esc(b.description)}</div>
+      <div><b>${esc(a.cpse)}</b>${a.plant?' <span class="site">'+esc(a.plant)+'</span>':''} · <span class="mono">${esc(a.legacy_code)}</span> — ${esc(a.description)}</div>
+      <div><b>${esc(b.cpse)}</b>${b.plant?' <span class="site">'+esc(b.plant)+'</span>':''} · <span class="mono">${esc(b.legacy_code)}</span> — ${esc(b.description)}</div>
     </div>
     ${prioLine}
     <div style="margin-top:10px">
@@ -656,7 +689,7 @@ function pairCardHTML(it, kind){
 }
 
 function renderQueue(){
-  const c = bandCounts();
+  const c = bandCounts(true);
   const all = Object.values(c).reduce((s,x)=>s+x,0);
   document.getElementById('queueSample').textContent =
     `This page carries ${DATA.queue.length} of the split's ${(DATA.decision_counts.REVIEW||0).toLocaleString()} `
@@ -666,11 +699,14 @@ function renderQueue(){
     `${DATA.auto_suggest.length} of ${(DATA.decision_counts.AUTO_SUGGEST||0).toLocaleString()} auto-suggested pairs shown.`;
   const bands = [['ALL','low','All'],['CRITICAL','critical','Critical'],['HIGH','high','High'],
                  ['MEDIUM','medium','Medium'],['LOW','low','Low']];
+  const scopes = [['ALL','All pairs'],['INTRA','Inside one CPSE'],['INTER','Across CPSEs']];
+  document.getElementById('scopeFilter').innerHTML = scopes.map(([v,label])=>
+    `<button class="preset${queueScope===v?' active':''}" onclick="setScope('${v}')">${label}</button>`).join('');
   document.getElementById('queueFilter').innerHTML = bands.map(([b,cls,label])=>
     `<div class="prio-cell ${cls} ${queueBand===b?'on':''}" onclick="setBand('${b}')">
       <div class="n tabular">${b==='ALL'?all:c[b]}</div><div class="l">${label}</div></div>`).join('');
 
-  let items = DATA.queue.filter(it=>!STATE.reviews[pkey(it.a,it.b)]);
+  let items = DATA.queue.filter(it=>!STATE.reviews[pkey(it.a,it.b)]).filter(inScope);
   if(queueBand!=='ALL') items = items.filter(it=>it.priority.band===queueBand);
   const el = document.getElementById('queueList');
   if(!items.length){
@@ -681,6 +717,7 @@ function renderQueue(){
   document.getElementById('queueMore').style.display = queueShown >= items.length ? 'none':'inline-block';
 }
 function setBand(b){ queueBand=b; queueShown=PAGE; renderQueue(); }
+function setScope(v){ queueScope=v; queueShown=PAGE; renderQueue(); }
 
 function renderAuto(){
   const items = DATA.auto_suggest.filter(it=>!STATE.reviews[pkey(it.a,it.b)]);
@@ -704,8 +741,8 @@ function renderVetoed(){
         <span class="meta">text similarity ${(it.cos*100).toFixed(1)}%</span>
       </div>
       <div class="desc-pair">
-        <div><b>${esc(it.record_a.cpse)}</b> · <span class="mono">${esc(it.record_a.legacy_code)}</span> — ${esc(it.record_a.description)}</div>
-        <div><b>${esc(it.record_b.cpse)}</b> · <span class="mono">${esc(it.record_b.legacy_code)}</span> — ${esc(it.record_b.description)}</div>
+        <div><b>${esc(it.record_a.cpse)}</b>${it.record_a.plant?' <span class="site">'+esc(it.record_a.plant)+'</span>':''} · <span class="mono">${esc(it.record_a.legacy_code)}</span> — ${esc(it.record_a.description)}</div>
+        <div><b>${esc(it.record_b.cpse)}</b>${it.record_b.plant?' <span class="site">'+esc(it.record_b.plant)+'</span>':''} · <span class="mono">${esc(it.record_b.legacy_code)}</span> — ${esc(it.record_b.description)}</div>
       </div>
       <div class="barline"><span class="lbl">A fuzzy matcher scores</span>
         <div class="bar amber"><span style="width:${(naive*100).toFixed(1)}%"></span></div>
@@ -725,6 +762,7 @@ function renderVetoed(){
 function openExplain(a,b){
   const x = EXPLAIN_BY_KEY[pkey(a,b)], it = ITEM_BY_KEY[pkey(a,b)];
   if(!x) return;
+  const ra = RECORDS[a], rb = RECORDS[b];
   const mark = v => v==='MATCH'?'✓':(v==='MISMATCH'?'✕':'?');
   const cls  = v => v==='MATCH'?'match':(v==='MISMATCH'?'mismatch':'unknown');
   const [bandLbl] = confidenceBand(x.score, x.decision, x.coverage);
@@ -732,9 +770,10 @@ function openExplain(a,b){
 
   let html = `<h3>${x.vetoed ? 'Why SAMANVAY refused this match' : 'Why SAMANVAY matched these'}</h3>
     <div class="desc-pair">
-      <div><b>${esc(x.a.cpse)}</b> · <span class="mono">${esc(x.a.code)}</span> — ${esc(x.a.text)}</div>
-      <div><b>${esc(x.b.cpse)}</b> · <span class="mono">${esc(x.b.code)}</span> — ${esc(x.b.text)}</div>
+      <div><b>${esc(x.a.cpse)}</b>${ra&&ra.plant?' <span class="site">'+esc(ra.plant)+'</span>':''} · <span class="mono">${esc(x.a.code)}</span> — ${esc(x.a.text)}</div>
+      <div><b>${esc(x.b.cpse)}</b>${rb&&rb.plant?' <span class="site">'+esc(rb.plant)+'</span>':''} · <span class="mono">${esc(x.b.code)}</span> — ${esc(x.b.text)}</div>
     </div>
+    ${it ? scopeNote(it) : ''}
     <div style="display:flex;align-items:baseline;gap:10px;margin-top:14px">
       <span style="font-size:26px;font-weight:700;color:${x.vetoed?'var(--bad)':'var(--navy)'}">${(x.score*100).toFixed(1)}%</span>
       <span class="pill ${x.vetoed?'vetoed':(x.decision==='AUTO_SUGGEST'?'auto':'review')}">${x.vetoed?'VETOED':(/HELD/.test(bandLbl)?bandLbl:bandLbl+' CONFIDENCE')}</span>
@@ -798,9 +837,9 @@ function renderChallenge(){
     const titles = {easy:'Case 1 — the ordinary duplicate', hard:'Case 2 — the duplicate that barely looks like one',
                     danger:'Case 3 — the dangerous near-match'};
     let body = `<div class="rec-row">
-        <div class="rec-box"><div class="cp">${esc(c.record_a.cpse)}</div>
+        <div class="rec-box"><div class="cp">${esc(c.record_a.cpse)}${c.record_a.plant?' · '+esc(c.record_a.plant):''}</div>
           <div class="cd">${esc(c.record_a.legacy_code)}</div>${esc(c.record_a.description)}</div>
-        <div class="rec-box"><div class="cp">${esc(c.record_b.cpse)}</div>
+        <div class="rec-box"><div class="cp">${esc(c.record_b.cpse)}${c.record_b.plant?' · '+esc(c.record_b.plant):''}</div>
           <div class="cd">${esc(c.record_b.legacy_code)}</div>${esc(c.record_b.description)}</div>
       </div>`;
     if(!st){
@@ -865,7 +904,7 @@ function renderGroups(){
       </div>
       <div class="canon">
         <div class="sources">${g.members.map(m=>
-          `<div class="src"><div class="c">${esc(m.cpse)}</div><div class="m">${esc(m.legacy_code)}</div></div>`).join('')}</div>
+          `<div class="src"><div class="c">${esc(m.cpse)}</div>${m.plant?`<div class="p">${esc(m.plant)}</div>`:''}<div class="m">${esc(m.legacy_code)}</div></div>`).join('')}</div>
         <div class="down">↓</div>
         <div class="gold"><b>Canonical record</b>${esc(g.canonical.description)}
           <div class="mono" style="margin-top:5px;color:var(--ink-dim)">
@@ -875,7 +914,7 @@ function renderGroups(){
       <div class="kicker">Legacy codes mapped to it</div>
       <div class="twrap"><table><tbody>
       ${g.members.map(m=>`<tr>
-        <td><b>${esc(m.cpse)}</b></td><td class="mono">${esc(m.legacy_code)}</td>
+        <td><b>${esc(m.cpse)}</b>${m.plant?`<div class="site">${esc(m.plant)}</div>`:''}</td><td class="mono">${esc(m.legacy_code)}</td>
         <td>${esc(m.description)}${m.is_canonical?' <span class="pill approve" style="margin-left:4px">canonical</span>':''}</td>
         <td style="text-align:right"><button class="btn ghost small" onclick="unmerge('${g.group_id}',${m.record_id})">split out</button></td>
       </tr>`).join('')}
@@ -962,11 +1001,12 @@ function renderSearch(){
      <span class="mono">${esc(JSON.stringify(p.extracted_attrs))}</span>`;
   const el = document.getElementById('searchResults');
   if(!p.results.length){ el.innerHTML = '<div class="empty">No non-vetoed candidates for this query.</div>'; return; }
-  el.innerHTML = `<div class="twrap"><table><thead><tr><th>Score</th><th>Decision</th><th>CPSE</th>
+  el.innerHTML = `<div class="twrap"><table><thead><tr><th>Score</th><th>Decision</th><th>CPSE / plant</th>
     <th>Legacy code</th><th>Description</th></tr></thead><tbody>
     ${p.results.map(r=>`<tr><td class="mono tabular">${r.score.toFixed(3)}</td>
       <td><span class="pill ${r.decision==='AUTO_SUGGEST'?'auto':'review'}">${esc(r.decision)}</span></td>
-      <td>${esc(r.cpse)}</td><td class="mono">${esc(r.legacy_code)}</td><td>${esc(r.description)}</td>
+      <td><b>${esc(r.cpse)}</b>${r.plant?`<div class="site">${esc(r.plant)}</div>`:''}</td>
+      <td class="mono">${esc(r.legacy_code)}</td><td>${esc(r.description)}</td>
     </tr>`).join('')}</tbody></table></div>`;
 }
 function selectPreset(i){ activePreset=i; renderSearch(); }

@@ -4,8 +4,15 @@ AI-driven standardisation and harmonisation of material codes across CPSEs.
 **SIH26099 · Team AlgoRythms.**
 
 The same physical bolt sits in three CPSE material masters under three codes and
-three spellings. This finds the entries that mean the same item and proposes one
-national code — with a human approving every merge and the legacy codes kept.
+three spellings — and, before any two companies are involved, under different
+codes at two plants of the *same* CPSE. This finds the entries that mean the same
+item and proposes one national code — with a human approving every merge and the
+legacy codes kept.
+
+The benchmark models 6 CPSEs across 31 plants (refineries, terminals, pipeline
+stations), so both levels are measurable: **63% of items are duplicated across
+plants of a single company**, which is the Phase-1 case a CPSE can act on without
+waiting for anyone else.
 
 ```bash
 make demo        # generate data -> run pipeline -> select threshold -> write RESULTS.md
@@ -18,6 +25,7 @@ make search Q="hex bolt 12mm stainless"
 | auto-suggest precision | **95.4%** (6,541 proposed, 299 wrong) |
 | coverage of true duplicates | **82.6%** |
 | candidate pairs after blocking | 147,130 of 24.5M possible (99.4% reduction) |
+| duplicates inside a single CPSE | **16.6%** of true pairs, across 31 plants |
 
 **→ [`RESULTS.md`](RESULTS.md) has the full measured evaluation** — dataset, three
 evaluation layers, baselines, the holdout ledger, all of it produced by `make demo`.
@@ -133,6 +141,13 @@ Console feature surface:
 - **Audit log** — append-only, recording the confidence at the moment of the
   decision and the before → after group state.
 - **Live search** (`GET /api/search`) — same fusion scorer `demo.py` uses.
+- **Plant / site awareness** — every record carries the plant it belongs to, and
+  every pair is labelled `SAME CPSE · 2 PLANTS` or `ACROSS CPSEs`. The queue has a
+  scope filter, so the intra-company case (Phase 1 of the rollout) can be
+  demonstrated rather than described. The generator assigns plants
+  deterministically from `record_id`, drawing no random numbers, so adding the
+  field left the dataset, the scored pairs and every measured result unchanged —
+  verified by re-running the whole pipeline and reproducing 0.9543 exactly.
 
 The static export adds a **Test SAMANVAY** panel: three real pairs from the
 locked split (an ordinary duplicate, a duplicate whose descriptions barely

@@ -99,6 +99,11 @@
   .foot{color:var(--grey);font-size:11.5px;margin-top:4px}
   .steward-input{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:12.5px;width:140px}
   .hint{color:var(--grey);font-size:12px;margin-bottom:10px}
+  .site{display:inline-block;font-size:10.5px;color:var(--teal);background:var(--teal-lt);
+        padding:1px 7px;border-radius:8px;font-weight:600;vertical-align:1px}
+  .pill.intra{background:var(--teal-lt);color:var(--teal)}
+  .pill.inter{background:var(--grey-lt);color:var(--grey)}
+  td .site{display:block;margin-top:3px;font-size:10px}
 </style>
 </head>
 <body>
@@ -291,6 +296,12 @@ async function loadStats(){
 }
 
 // ---------------- queue / auto-suggest ----------------
+function scopeChip(it){
+  if(!it || !it.scope) return '';
+  return it.scope === 'INTER'
+    ? ' <span class="pill inter">ACROSS CPSEs</span>'
+    : ' <span class="pill intra">SAME CPSE · 2 PLANTS</span>';
+}
 function bandOf(it){
   // a pair can clear 0.92 and still be held: the coverage floor caps anything
   // resting on fewer than two specifications known on both sides
@@ -312,12 +323,12 @@ function pairCardHTML(it, kind){
       uncertainty ${(p.uncertainty*100).toFixed(0)}% · evidence ${it.coverage} spec${it.coverage===1?'':'s'} on both sides · value at stake ${inr(p.value_raw)}</div>` : '';
   return `<div class="card" style="margin-bottom:10px" data-a="${it.a}" data-b="${it.b}">
     <div style="display:flex;justify-content:space-between;align-items:center">
-      <span class="pill ${pillClass}">${it.decision} · score ${it.score}</span>
+      <span><span class="pill ${pillClass}">${it.decision} · score ${it.score}</span>${scopeChip(it)}</span>
       <span class="mono" style="color:var(--grey);font-size:11.5px">${(it.score*100).toFixed(1)}% · ${bandOf(it)}</span>
     </div>
     <div class="desc-pair">
-      <div><b>${a.cpse}</b> · <span class="mono">${a.legacy_code}</span> — ${a.description}</div>
-      <div><b>${b.cpse}</b> · <span class="mono">${b.legacy_code}</span> — ${b.description}</div>
+      <div><b>${a.cpse}</b>${a.plant?` <span class="site">${a.plant}</span>`:''} · <span class="mono">${a.legacy_code}</span> — ${a.description}</div>
+      <div><b>${b.cpse}</b>${b.plant?` <span class="site">${b.plant}</span>`:''} · <span class="mono">${b.legacy_code}</span> — ${b.description}</div>
     </div>
     ${prio}
     <div style="margin-top:10px"></div>
@@ -428,7 +439,7 @@ async function loadGroups(){
       <div class="hint" style="margin-top:8px;margin-bottom:2px">MEMBER LEGACY CODES</div>
       <table><tbody>
       ${g.members.map(m=>`<tr>
-        <td><b>${m.cpse}</b></td><td class="mono">${m.legacy_code}</td><td>${m.description}${m.is_canonical?' <span class="pill approve" style="margin-left:4px">canonical</span>':''}</td>
+        <td><b>${m.cpse}</b>${m.plant?`<div class="site" style="margin-top:2px">${m.plant}</div>`:''}</td><td class="mono">${m.legacy_code}</td><td>${m.description}${m.is_canonical?' <span class="pill approve" style="margin-left:4px">canonical</span>':''}</td>
         <td style="text-align:right"><button class="btn ghost small" onclick="unmerge('${g.group_id}',${m.record_id})">split out</button></td>
       </tr>`).join('')}
       </tbody></table>
@@ -457,7 +468,7 @@ async function doSearch(){
     ${d.results.map(r=>`<tr>
       <td class="mono">${r.score}</td>
       <td><span class="pill ${r.decision==='AUTO_SUGGEST'?'auto':'review'}">${r.decision}</span></td>
-      <td>${r.cpse}</td><td class="mono">${r.legacy_code}</td><td>${r.description}</td>
+      <td><b>${r.cpse}</b>${r.plant?`<div class="site" style="margin-top:2px">${r.plant}</div>`:''}</td><td class="mono">${r.legacy_code}</td><td>${r.description}</td>
     </tr>`).join('')}</tbody></table>`;
 }
 document.getElementById('searchBtn').addEventListener('click', doSearch);

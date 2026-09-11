@@ -31,6 +31,38 @@ CPSES = [("IOCL", lambda r: f"{r.randint(10000000,10999999)}"),
          ("HPCL", lambda r: f"H-{r.randint(1000,9999)}"),
          ("GAIL", lambda r: f"GL/{r.randint(10000,99999)}"),
          ("CPCL", lambda r: f"CP{r.randint(1000000,9999999)}")]
+
+# Plants / sites within each CPSE. The duplication problem does not start at the
+# boundary between two companies - it starts inside one, because every refinery,
+# terminal and pipeline division has created codes independently for decades,
+# often through separate ERP rollouts. Modelling the site makes that visible:
+# a duplicate pair can now be intra-CPSE (two plants of one company) or
+# inter-CPSE, and the console reports the split.
+#
+# Site names are plausible real facilities; the RECORDS remain entirely
+# synthetic. Assignment is deterministic on record_id and deliberately draws no
+# random numbers, so adding this field leaves the generated dataset, the scored
+# pairs and every measured result bit-for-bit unchanged.
+PLANTS = {
+    "IOCL": ["Panipat Refinery", "Mathura Refinery", "Gujarat Refinery",
+             "Haldia Refinery", "Paradip Refinery", "Northern Region Pipelines",
+             "Mumbai Terminal"],
+    "ONGC": ["Hazira Plant", "Uran Plant", "Ankleshwar Asset",
+             "Rajahmundry Asset", "Mumbai High Offshore", "Assam Asset"],
+    "BPCL": ["Mumbai Refinery", "Kochi Refinery", "Bina Refinery",
+             "Irugur Terminal", "Kanpur Depot"],
+    "HPCL": ["Mumbai Refinery", "Visakh Refinery", "Vijayawada Terminal",
+             "Mangalore Depot", "Rewari Pipeline Station"],
+    "GAIL": ["Vijaipur Complex", "Pata Petrochemical", "Hazira Compressor",
+             "Vaghodia Station", "Dibiyapur Station"],
+    "CPCL": ["Manali Refinery", "Cauvery Basin Refinery", "Ennore Terminal",
+             "Madurai Depot"],
+}
+
+
+def plant_of(cpse, record_id):
+    sites = PLANTS[cpse]
+    return sites[record_id % len(sites)]
 NOISE = ["for pump house", "spare", "assembly", "as per drawing", "store item",
          "unit-2", "shutdown spare", "std item"]
 VENDOR = ["-SKF{n}", "(MAKE: L&T)", "- CAT#{n}", "/ REF {n}", "MAKE KSB"]
@@ -191,7 +223,8 @@ def main():
                 recipe = rng.choice(COMMON)
             cp, codegen = rng.choice(CPSES)
             rows.append(dict(
-                record_id=len(rows), cpse=cp, legacy_code=codegen(rng),
+                record_id=len(rows), cpse=cp,
+                plant=plant_of(cp, len(rows)), legacy_code=codegen(rng),
                 description=render(it["chunks"], recipe, rng, it["category"]),
                 uom=it["uom"], category_true=it["category"],
                 qty=rng.choice([12, 50, 120, 400, 1250, 4800, 10150]),

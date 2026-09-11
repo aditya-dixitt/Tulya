@@ -56,7 +56,9 @@ def build_data():
         category = prep.at[rid, "category"] if rid in prep.index else None
         if category is None or (isinstance(category, float) and pd.isna(category)):
             category = r.get("category_true") or "unclassified"
-        return dict(record_id=int(rid), cpse=r.cpse, legacy_code=str(r.legacy_code),
+        return dict(record_id=int(rid), cpse=r.cpse,
+                    plant=(r.plant if "plant" in recs.columns else ""),
+                    legacy_code=str(r.legacy_code),
                     description=r.description, category=category, attrs=attrs)
 
     # ground truth, used only to label the challenge cases after the judge has
@@ -67,6 +69,18 @@ def build_data():
     # value at stake per record: the generator gives every record a real
     # quantity and unit value, so this is a genuine number, not a stand-in
     spend = (recs.qty * recs.unit_value)
+
+    def scope_of(ra, rb):
+        """Is this duplicate inside one company, or between two?
+
+        The problem does not begin at the company boundary — a refinery and a
+        terminal of the same CPSE already hold the same item under different
+        codes. Labelling every pair makes the Phase-1 case (harmonise one CPSE
+        across its own plants) demonstrable rather than asserted.
+        """
+        if ra["cpse"] != rb["cpse"]:
+            return "INTER"
+        return "INTRA" if ra.get("plant") != rb.get("plant") else "SAME_PLANT"
 
     def build_item(row, with_priority=False):
         a, b = int(row.a), int(row.b)
@@ -86,7 +100,8 @@ def build_data():
         # where the number actually came from rather than just its total
         contrib = dict(cos=round(W_COS * r["cos"], 4), fuz=round(W_FUZ * r["fuz"], 4),
                        attr=(round(W_ATTR * r["attr"], 4) if r["attr"] is not None else None))
-        item = dict(a=a, b=b, score=round(r["score"], 4), cos=round(r["cos"], 4), fuz=round(r["fuz"], 4),
+        item = dict(a=a, b=b, scope=scope_of(ra, rb),
+                    score=round(r["score"], 4), cos=round(r["cos"], 4), fuz=round(r["fuz"], 4),
                     attr=(round(r["attr"], 4) if r["attr"] is not None else None),
                     score_noveto=round(float(row.score_noveto), 4) if hasattr(row, "score_noveto") else None,
                     coverage=r["coverage"], decision=row.decision, contrib=contrib,
@@ -202,6 +217,24 @@ def build_data():
 
     holdout = json.loads((OUT / "holdout_run.json").read_text())
 
+    # how much of the duplication lives inside a single CPSE? measured over the
+    # ground-truth duplicate pairs of this split.
+    tp = pairs[pairs.is_true]
+    cpse_of = recs.cpse.to_dict()
+    plant_of_rec = recs.plant.to_dict() if "plant" in recs.columns else {}
+    intra = inter = same_plant = 0
+    for a, b in zip(tp.a, tp.b):
+        if cpse_of.get(a) != cpse_of.get(b):
+            inter += 1
+        elif plant_of_rec.get(a) != plant_of_rec.get(b):
+            intra += 1
+        else:
+            same_plant += 1
+    scope_stats = dict(intra=intra, inter=inter, same_plant=same_plant,
+                       total=intra + inter + same_plant,
+                       plants=int(recs.plant.nunique()) if "plant" in recs.columns else 0,
+                       cpses=int(recs.cpse.nunique()))
+
     return dict(
         split=SPLIT, records=int(len(recs)), pairs_scored=int(len(pairs)),
         decision_counts={k: int(v) for k, v in pairs["decision"].value_counts().items()},
@@ -220,6 +253,7 @@ def build_data():
                      hard_negatives=holdout["result"]["hard_negatives"],
                      ambiguity=holdout["result"]["ambiguity"]),
         distribution=dict(edges=edges, counts=hist, total=int(len(live))),
+        scope=scope_stats,
         queue=[build_item(r, with_priority=True) for r in review.itertuples()],
         auto_suggest=[build_item(r) for r in auto.itertuples()],
         vetoed_examples=[build_item(r) for r in vetoed.itertuples()],

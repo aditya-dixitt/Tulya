@@ -65,7 +65,8 @@ def row_dict(rid):
     category = PREP.at[rid, "category"] if rid in PREP.index else None
     if category is None or (isinstance(category, float) and pd.isna(category)):
         category = r.get("category_true") or "unclassified"
-    return dict(record_id=rid, cpse=r.cpse, legacy_code=str(r.legacy_code),
+    return dict(record_id=rid, cpse=r.cpse, plant=(r.plant if "plant" in RECS.columns else ""),
+                legacy_code=str(r.legacy_code),
                 description=r.description, category=category, attrs=attrs)
 
 
@@ -113,8 +114,18 @@ def enrich_pair_row(row):
                 fuz=round(float(row.fuz), 4),
                 attr=(round(float(row.attr), 4) if pd.notna(row.attr) else None),
                 coverage=int(row.coverage), decision=row.decision,
-                priority=priority_of(row),
+                priority=priority_of(row), scope=scope_of(a, b),
                 record_a=row_dict(a), record_b=row_dict(b))
+
+
+def scope_of(a, b):
+    """INTRA = two plants of one CPSE, INTER = two different CPSEs."""
+    ca, cb = RECS.at[a, "cpse"], RECS.at[b, "cpse"]
+    if ca != cb:
+        return "INTER"
+    if "plant" not in RECS.columns:
+        return "INTRA"
+    return "INTRA" if RECS.at[a, "plant"] != RECS.at[b, "plant"] else "SAME_PLANT"
 
 
 # value at stake per record - qty x unit value, straight from the source rows
