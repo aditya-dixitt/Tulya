@@ -14,7 +14,7 @@ can't cross-check against RESULTS.md.
 
 Run:  python3 api/app.py   (serves the console at http://localhost:8000)
 """
-import sys, json, pickle, pathlib
+import sys, json, os, pickle, pathlib, sqlite3
 import numpy as np
 import pandas as pd
 from flask import Flask, jsonify, request, send_from_directory
@@ -30,9 +30,17 @@ from engine.explain import explain
 
 import store
 import grouping
+import auth
+from engine import registry, taxonomy, codegen
 
 SPLIT = "test"
 OUT = ROOT / "data" / "out"
+
+# Reads are open by default because this console serves a synthetic benchmark
+# and a login wall in front of a demo helps nobody. Set SAMANVAY_REQUIRE_LOGIN=1
+# and every read route needs a session too - the same decorator, the same code
+# path, exercised by tests/test_api.py so the deployed posture is not untested.
+REQUIRE_LOGIN = os.environ.get("SAMANVAY_REQUIRE_LOGIN") == "1"
 
 app = Flask(__name__, static_folder=str(pathlib.Path(__file__).parent / "static"))
 
@@ -49,8 +57,43 @@ VEC_IDS = PREP.index.to_numpy()
 RUN_INFO = json.loads((OUT / f"run_{SPLIT}.json").read_text())
 THRESH_INFO = json.loads((OUT / "threshold_selection.json").read_text()) if (OUT / "threshold_selection.json").exists() else {}
 
-DB = store.init_db()
+# Both stores are overridable so the API tests can run against throwaway
+# databases. A test suite that writes to the same steward.db a demo runs from
+# is a test suite that will eventually lose somebody's review session.
+DB = store.init_db(pathlib.Path(os.environ["SAMANVAY_DB"])
+                   if os.environ.get("SAMANVAY_DB") else None)
+auth.init_auth(DB)
+auth.purge_expired(DB)
+
+# One registry, shared with the ERP connector, so a code issued by a steward in
+# the console is the same code the next write-back batch carries.
+REG = registry.init_registry(sqlite3.connect(
+    os.environ.get("SAMANVAY_REGISTRY_DB") or (OUT / "registry.db"),
+    check_same_thread=False))
+
 print(f"[api] {len(RECS)} test-split records, {len(PAIRS)} scored pairs loaded")
+print(f"[api] sign-in required for reads: {REQUIRE_LOGIN}. Demo accounts: " +
+      ", ".join(f"{u}/{p} ({r})" for u, _n, _c, r, p in auth.SEED_USERS))
+
+
+def _db():
+    return DB
+
+
+def needs(role):
+    """Role gate. Read routes only gate when SAMANVAY_REQUIRE_LOGIN=1."""
+    if role == "viewer" and not REQUIRE_LOGIN:
+        return lambda fn: fn
+    return auth.requires(role, _db)
+
+
+def current_user():
+    return auth.user_for_token(DB, auth.token_from_request())
+
+
+def actor(default="anonymous"):
+    u = current_user()
+    return u["username"] if u else default
 
 
 # ---- helpers ---------------------------------------------------------------
@@ -103,9 +146,36 @@ def score_pair(a, b):
     return fuse(cos, fuz, aa, ab)
 
 
-def current_groups():
+PAIR_SCORES = {(int(r.a), int(r.b)): float(r.score) for r in PAIRS.itertuples()}
+
+
+def current_state():
+    """Golden records plus the approvals that could not be applied.
+
+    `blocked` is not an error list to hide - it is approvals a steward made
+    that would have produced a self-contradictory golden record. The console
+    shows them back to the steward with the conflicting specification named.
+    """
     edges = store.approved_edges(DB)
-    return grouping.build_golden_records(edges, RECS, PREP)
+    return grouping.resolve(edges, RECS, PREP, scores=PAIR_SCORES)
+
+
+def current_groups():
+    return current_state()["groups"]
+
+
+def _mint_for(group, who):
+    """A golden record earns a national code the moment it exists.
+
+    Refusals are returned, not swallowed: 'this group cannot have a code yet,
+    and here is the specification that could not be read' is the useful
+    answer, and it is the one that sends the steward somewhere productive.
+    """
+    if not group:
+        return None
+    return registry.mint_for_group(
+        REG, [m["record_id"] for m in group["members"]], RECS, PREP,
+        actor=who, canonical_id=group["canonical"]["record_id"])
 
 
 def enrich_pair_row(row):
@@ -131,6 +201,16 @@ def scope_of(a, b):
 # value at stake per record - qty x unit value, straight from the source rows
 SPEND = (RECS.qty * RECS.unit_value)
 
+# Priority ranking needs the queue's own value distribution and its own band
+# cuts, so both are computed once at startup over the real REVIEW band. The
+# same weights and the same percentile cuts as api/export_static_demo.py, so
+# the live console and the shipped static demo rank a pair identically.
+_REVIEW = PAIRS[PAIRS.decision == "REVIEW"]
+_QUEUE_VALUES = np.sort(
+    (SPEND.reindex(_REVIEW.a.to_numpy()).to_numpy(na_value=0.0) +
+     SPEND.reindex(_REVIEW.b.to_numpy()).to_numpy(na_value=0.0))) if len(_REVIEW) else np.array([0.0])
+_BAND_CUTS = (1.0, 1.0, 1.0)   # replaced below, once priority_of can be called
+
 
 def priority_of(row):
     """Which pairs deserve a steward's attention first.
@@ -145,8 +225,40 @@ def priority_of(row):
     uncertainty = max(0.0, 1.0 - abs(score - T_AUTO) / (T_AUTO - T_DISCARD))
     thin = 1.0 / (1.0 + int(row.coverage))
     value = float(SPEND.get(int(row.a), 0.0) + SPEND.get(int(row.b), 0.0))
+    # Value spans orders of magnitude, so it enters as a percentile of the
+    # queue's own distribution rather than raw - otherwise one pipeline order
+    # outranks everything else forever.
+    pct = float(np.searchsorted(_QUEUE_VALUES, value, side="right") / max(1, len(_QUEUE_VALUES)))
+    total = 0.40 * uncertainty + 0.30 * thin + 0.30 * pct
     return dict(uncertainty=round(uncertainty, 3), thin_evidence=round(thin, 3),
-                value_raw=round(value, 2))
+                value_raw=round(value, 2), value_pct=round(pct, 3),
+                total=round(total, 4), band=_band_of(total))
+
+
+def _band_of(total):
+    for cut, name in zip(_BAND_CUTS, ("CRITICAL", "HIGH", "MEDIUM")):
+        if total >= cut:
+            return name
+    return "LOW"
+
+
+def _compute_band_cuts():
+    """Percentile cuts over the real queue: top 8% critical, next 20% high,
+    next 34% medium. Bands are relative because 'what deserves me first' is a
+    ranking question, not an absolute-score question."""
+    if not len(_REVIEW):
+        return (1.0, 1.0, 1.0)
+    unc = np.maximum(0.0, 1.0 - np.abs(_REVIEW.score.to_numpy() - T_AUTO) / (T_AUTO - T_DISCARD))
+    thin = 1.0 / (1.0 + _REVIEW.coverage.to_numpy())
+    vals = (SPEND.reindex(_REVIEW.a.to_numpy()).to_numpy(na_value=0.0) +
+            SPEND.reindex(_REVIEW.b.to_numpy()).to_numpy(na_value=0.0))
+    pct = np.searchsorted(_QUEUE_VALUES, vals, side="right") / max(1, len(_QUEUE_VALUES))
+    totals = np.sort(0.40 * unc + 0.30 * thin + 0.30 * pct)[::-1]
+    at = lambda f: float(totals[min(len(totals) - 1, int(len(totals) * f))])
+    return (at(0.08), at(0.28), at(0.62))
+
+
+_BAND_CUTS = _compute_band_cuts()
 
 
 # ---- static console --------------------------------------------------------
@@ -157,6 +269,7 @@ def index():
 
 # ---- stats ------------------------------------------------------------------
 @app.route("/api/stats")
+@needs("viewer")
 def api_stats():
     decision_counts = PAIRS["decision"].value_counts().to_dict()
     reviewed = store.reviewed_keys(DB)
@@ -190,6 +303,7 @@ def api_stats():
 
 # ---- performance: how the threshold was chosen, and what it returned --------
 @app.route("/api/performance")
+@needs("viewer")
 def api_performance():
     """Everything needed to defend the operating point, read from the files the
     pipeline already wrote — the validation sweep the threshold was selected
@@ -235,6 +349,7 @@ def _queue(decision, limit, offset):
 
 
 @app.route("/api/queue")
+@needs("viewer")
 def api_queue():
     limit = int(request.args.get("limit", 25))
     offset = int(request.args.get("offset", 0))
@@ -243,6 +358,7 @@ def api_queue():
 
 
 @app.route("/api/auto-suggest")
+@needs("viewer")
 def api_auto_suggest():
     limit = int(request.args.get("limit", 25))
     offset = int(request.args.get("offset", 0))
@@ -252,6 +368,7 @@ def api_auto_suggest():
 
 # ---- explain ----------------------------------------------------------------
 @app.route("/api/pair/<int:a>/<int:b>/explain")
+@needs("viewer")
 def api_explain(a, b):
     ra, rb = row_dict(a), row_dict(b)
     r = score_pair(a, b)
@@ -269,34 +386,83 @@ def _validate_pair(a, b):
 
 # ---- decide -------------------------------------------------------------
 @app.route("/api/pair/<int:a>/<int:b>/approve", methods=["POST"])
+@needs("steward")
 def api_approve(a, b):
     err = _validate_pair(a, b)
     if err:
         return err
     body = request.get_json(silent=True) or {}
-    store.record_review(DB, a, b, "approve", body.get("steward"), body.get("note"))
-    groups = current_groups()
-    group = grouping.find_group_for_record(groups, a)
-    return jsonify(_native(dict(ok=True, group=group)))
+    who = actor(body.get("steward") or "steward_demo")
+    value = float(SPEND.get(a, 0.0)) + float(SPEND.get(b, 0.0))
+    second = auth.needs_second_approval(value)
+    status = store.record_review(DB, a, b, "approve", who, body.get("note"),
+                                 value_at_stake=value, needs_second=second)
+
+    if status == "awaiting_second":
+        return jsonify(_native(dict(
+            ok=True, status=status, value_at_stake=value,
+            message=(f"Rs {value:,.0f} of stock sits on this merge, so it is parked for a "
+                     f"second signature from someone holding the approver role. It is not "
+                     f"in force until then."))))
+
+    state = current_state()
+    group = grouping.find_group_for_record(state["groups"], a)
+    blocked = [x for x in state["blocked"] if (x["a"], x["b"]) == tuple(sorted((a, b)))]
+    if blocked:
+        return jsonify(_native(dict(
+            ok=True, status="blocked", group=None, blocked=blocked[0],
+            message=("recorded, but not applied: " + blocked[0]["reason"] +
+                     ". Merging these would put two contradictory items under one code."))))
+
+    minted = _mint_for(group, who) if group else None
+    return jsonify(_native(dict(ok=True, status=status, group=group, national_code=minted)))
+
+
+@app.route("/api/pair/<int:a>/<int:b>/countersign", methods=["POST"])
+@needs("approver")
+def api_countersign(a, b):
+    err = _validate_pair(a, b)
+    if err:
+        return err
+    ok, msg = store.countersign(DB, a, b, actor())
+    if not ok:
+        return jsonify(ok=False, error=msg), 409
+    state = current_state()
+    group = grouping.find_group_for_record(state["groups"], a)
+    minted = _mint_for(group, actor()) if group else None
+    return jsonify(_native(dict(ok=True, status="applied", group=group, national_code=minted)))
+
+
+@app.route("/api/pending-approvals")
+@needs("viewer")
+def api_pending_approvals():
+    rows = store.pending_second_approval(DB)
+    for r in rows:
+        r["record_a"], r["record_b"] = row_dict(r["a"]), row_dict(r["b"])
+    return jsonify(_native(dict(pending=rows, threshold=auth.SECOND_APPROVAL_VALUE)))
 
 
 @app.route("/api/pair/<int:a>/<int:b>/reject", methods=["POST"])
+@needs("steward")
 def api_reject(a, b):
     err = _validate_pair(a, b)
     if err:
         return err
     body = request.get_json(silent=True) or {}
-    store.record_review(DB, a, b, "reject", body.get("steward"), body.get("note"))
+    store.record_review(DB, a, b, "reject", actor(body.get("steward") or "steward_demo"),
+                        body.get("note"))
     return jsonify(_native(dict(ok=True)))
 
 
 # ---- groups (golden records) ------------------------------------------------
 @app.route("/api/groups")
+@needs("viewer")
 def api_groups():
     return jsonify(_native(dict(groups=current_groups())))
 
 
 @app.route("/api/groups/<gid>")
+@needs("viewer")
 def api_group_detail(gid):
     groups = current_groups()
     for g in groups:
@@ -306,6 +472,7 @@ def api_group_detail(gid):
 
 
 @app.route("/api/groups/<gid>/unmerge", methods=["POST"])
+@needs("approver")
 def api_unmerge(gid):
     body = request.get_json(silent=True) or {}
     record_id = body.get("record_id")
@@ -313,13 +480,205 @@ def api_unmerge(gid):
         return jsonify(error="record_id required"), 400
     if int(record_id) not in RECS.index:
         return jsonify(error=f"unknown record id {record_id}"), 400
-    n = store.remove_approved_edges_for_record(DB, record_id, body.get("steward"), body.get("note"))
+    who = actor(body.get("steward") or "steward_demo")
+    n = store.remove_approved_edges_for_record(DB, record_id, who, body.get("note"))
+    registry.unlink_record(REG, record_id, actor=who, note=body.get("note") or "")
     groups = current_groups()
     return jsonify(_native(dict(ok=True, edges_removed=n, groups=groups)))
 
 
+# ---- the veto wall -------------------------------------------------------
+@app.route("/api/vetoes")
+@needs("viewer")
+def api_vetoes():
+    """The pairs the engine rejected *despite* near-identical text.
+
+    Sorted by how similar the descriptions are, so the top of this list is
+    exactly the set a fuzzy matcher would have merged with confidence. Each
+    row carries what fusion would have scored it without the veto, which is
+    the number that makes the case.
+    """
+    limit = int(request.args.get("limit", 40))
+    key = request.args.get("key", "")
+    vetoed = PAIRS[PAIRS.vetoed.astype(bool)].nlargest(limit * 6, "cos")
+    out, by_key = [], {}
+    for r in vetoed.itertuples():
+        a, b = int(r.a), int(r.b)
+        aa = json.loads(PREP.at[a, "attrs"]) if a in PREP.index else {}
+        ab = json.loads(PREP.at[b, "attrs"]) if b in PREP.index else {}
+        verdicts, _nm, _nx, _nk = compare(aa, ab)
+        conflicts = [k for k, v in verdicts.items() if v == "MISMATCH"]
+        for k in conflicts:
+            by_key[k] = by_key.get(k, 0) + 1
+        if key and key not in conflicts:
+            continue
+        if len(out) < limit:
+            out.append(dict(a=a, b=b, cos=round(float(r.cos), 4), fuz=round(float(r.fuz), 4),
+                            score_noveto=round(float(r.score_noveto), 4),
+                            conflicts=conflicts,
+                            values={k: [aa.get(k), ab.get(k)] for k in conflicts},
+                            scope=scope_of(a, b),
+                            record_a=row_dict(a), record_b=row_dict(b)))
+    # counts across the whole split, not just the sample above
+    return jsonify(_native(dict(
+        items=out, total_vetoed=int(PAIRS.vetoed.astype(bool).sum()),
+        by_key=sorted(({"key": k, "n": n} for k, n in by_key.items()),
+                      key=lambda d: -d["n"]),
+        sampled_from=len(vetoed))))
+
+
+@app.route("/api/priority")
+@needs("viewer")
+def api_priority():
+    """Priority bands over the whole review queue.
+
+    Priority is uncertainty x thin evidence x value at stake. The bands are
+    percentile cuts of the real distribution rather than fixed score
+    boundaries, because what matters to a steward with a morning to spend is
+    'which of these deserve me first', not an absolute number.
+    """
+    counts = {}
+    for r in _REVIEW.itertuples():
+        counts[priority_of(r)["band"]] = counts.get(priority_of(r)["band"], 0) + 1
+    notes = {"CRITICAL": "marginal call, thin evidence, high value at stake",
+             "HIGH": "worth a steward's morning",
+             "MEDIUM": "routine review",
+             "LOW": "low value, or near-certain either way"}
+    bands = [dict(band=b, n=counts.get(b, 0), note=notes[b])
+             for b in ("CRITICAL", "HIGH", "MEDIUM", "LOW")]
+    return jsonify(_native(dict(bands=bands, total=int(len(_REVIEW)),
+                                weights=dict(uncertainty=0.40, thin_evidence=0.30,
+                                             value_at_stake=0.30))))
+
+
+@app.route("/api/scope")
+@needs("viewer")
+def api_scope():
+    """How much of the duplication is inside a single CPSE.
+
+    This is the Phase-1 number: a company can act on its own plants without
+    waiting for any other CPSE, so it is the first thing a materials head
+    wants to know.
+    """
+    # Ground truth, not what the engine found: the question is how much
+    # duplication *exists* inside one company, which is a property of the data
+    # and not of how well we detected it.
+    intra = inter = same = 0
+    for _cid, grp in RECS.groupby("cluster_id"):
+        ids = list(grp.index)
+        for i in range(len(ids)):
+            for j in range(i + 1, len(ids)):
+                s = scope_of(ids[i], ids[j])
+                intra += s == "INTRA"
+                inter += s == "INTER"
+                same += s == "SAME_PLANT"
+    plants = int(RECS.plant.nunique()) if "plant" in RECS.columns else 0
+    by_cpse = []
+    if "plant" in RECS.columns:
+        for cp, grp in RECS.groupby("cpse"):
+            by_cpse.append(dict(cpse=cp, records=int(len(grp)),
+                                plants=int(grp.plant.nunique())))
+    return jsonify(_native(dict(
+        intra=intra, inter=inter, same_plant=same, total=intra + inter + same,
+        plants=plants, cpses=int(RECS.cpse.nunique()),
+        by_cpse=sorted(by_cpse, key=lambda d: -d["records"]))))
+
+
+# ---- accounts ------------------------------------------------------------
+@app.route("/api/auth/login", methods=["POST"])
+def api_login():
+    body = request.get_json(silent=True) or {}
+    session = auth.login(DB, body.get("username", ""), body.get("password", ""))
+    if not session:
+        return jsonify(error="wrong username or password", code="bad_credentials"), 401
+    return jsonify(session)
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+def api_logout():
+    auth.logout(DB, auth.token_from_request())
+    return jsonify(ok=True)
+
+
+@app.route("/api/auth/me")
+def api_me():
+    user = current_user()
+    if not user:
+        return jsonify(signed_in=False, require_login=REQUIRE_LOGIN,
+                       demo_accounts=[dict(username=u, role=r, password=p)
+                                      for u, _n, _c, r, p in auth.SEED_USERS])
+    return jsonify(signed_in=True, require_login=REQUIRE_LOGIN, **user)
+
+
+# ---- the national code registry -----------------------------------------
+@app.route("/api/registry/stats")
+@needs("viewer")
+def api_registry_stats():
+    return jsonify(_native(dict(**registry.stats(REG),
+                                classes=len(taxonomy.all_classes()),
+                                events=registry.events(REG, 25),
+                                refusals=registry.refusals(REG, 25))))
+
+
+@app.route("/api/registry/catalogue")
+@needs("viewer")
+def api_catalogue():
+    limit = int(request.args.get("limit", 200))
+    rows = registry.catalogue(REG)[:limit]
+    return jsonify(_native(dict(catalogue=rows, total=len(rows))))
+
+
+@app.route("/api/registry/provisional")
+@needs("viewer")
+def api_provisional():
+    return jsonify(_native(dict(queue=registry.provisional_queue(REG, 300))))
+
+
+@app.route("/api/registry/confirm/<int:record_id>", methods=["POST"])
+@needs("approver")
+def api_confirm_member(record_id):
+    body = request.get_json(silent=True) or {}
+    nmc = registry.confirm_member(REG, record_id, actor(), body.get("note", ""))
+    if not nmc:
+        return jsonify(error="that record does not carry a national code"), 404
+    return jsonify(ok=True, nmc=nmc)
+
+
+@app.route("/api/nmc/<code>")
+@needs("viewer")
+def api_nmc(code):
+    parsed = codegen.parse_code(code)
+    if not parsed:
+        return jsonify(error="not a national material code", code=code), 400
+    if not parsed["valid"]:
+        return jsonify(error="this code fails its own check digit - it has been "
+                             "mistyped somewhere", code=code, valid=False), 400
+    entry = registry.get(REG, code)
+    if not entry:
+        return jsonify(error="no such code has been issued", code=code), 404
+    live, hops = registry.resolve(REG, code)
+    entry["resolves_to"], entry["supersede_hops"] = live, hops
+    return jsonify(_native(entry))
+
+
+@app.route("/api/lookup")
+@needs("viewer")
+def api_lookup():
+    """The lookup a purchase officer does: their own code in, national code out."""
+    cpse, legacy = request.args.get("cpse", ""), request.args.get("legacy_code", "")
+    if not legacy:
+        return jsonify(error="legacy_code required"), 400
+    nmc = registry.code_for_legacy(REG, cpse, legacy)
+    if not nmc:
+        return jsonify(found=False, cpse=cpse, legacy_code=legacy,
+                       message="this code has no national code yet")
+    return jsonify(_native(dict(found=True, cpse=cpse, legacy_code=legacy,
+                                national_code=nmc, entry=registry.get(REG, nmc))))
+
+
 # ---- audit -------------------------------------------------------------
 @app.route("/api/audit")
+@needs("viewer")
 def api_audit():
     limit = int(request.args.get("limit", 200))
     rows = store.audit_log(DB, limit)
@@ -339,6 +698,7 @@ def api_audit():
 
 # ---- live search --------------------------------------------------------
 @app.route("/api/search")
+@needs("viewer")
 def api_search():
     q = request.args.get("q", "").strip()
     k = int(request.args.get("k", 8))
