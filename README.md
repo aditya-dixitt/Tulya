@@ -1,4 +1,4 @@
-# SAMANVAY — prototype
+# TULYA — prototype
 
 AI-driven standardisation and harmonisation of material codes across CPSEs.
 **SIH26099 · Team AlgoRythms.**
