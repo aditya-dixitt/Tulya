@@ -2,13 +2,13 @@
 
 rapidfuzz is not installable in this sandbox, so the same procedure runs on
 difflib.SequenceMatcher instead of Levenshtein. Scores track rapidfuzz closely
-but are not bit-identical; set SAMANVAY_FUZZY=rapidfuzz on a machine that has it.
+but are not bit-identical; set TULYA_FUZZY=rapidfuzz on a machine that has it.
 """
 import os, difflib, functools
 
 BACKEND = "difflib"
 try:
-    if os.environ.get("SAMANVAY_FUZZY", "auto") != "difflib":
+    if os.environ.get("TULYA_FUZZY", "auto") != "difflib":
         from rapidfuzz.fuzz import token_set_ratio as _rf   # noqa
         BACKEND = "rapidfuzz"
 except Exception:
