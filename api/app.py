@@ -1,4 +1,4 @@
-"""SAMANVAY steward console API.
+"""TULYA steward console API.
 
 Flask instead of FastAPI: FastAPI isn't installable here (PyPI is blocked
 in this sandbox, same constraint as the ML backends in engine/), but Flask
@@ -37,10 +37,10 @@ SPLIT = "test"
 OUT = ROOT / "data" / "out"
 
 # Reads are open by default because this console serves a synthetic benchmark
-# and a login wall in front of a demo helps nobody. Set SAMANVAY_REQUIRE_LOGIN=1
+# and a login wall in front of a demo helps nobody. Set TULYA_REQUIRE_LOGIN=1
 # and every read route needs a session too - the same decorator, the same code
 # path, exercised by tests/test_api.py so the deployed posture is not untested.
-REQUIRE_LOGIN = os.environ.get("SAMANVAY_REQUIRE_LOGIN") == "1"
+REQUIRE_LOGIN = os.environ.get("TULYA_REQUIRE_LOGIN") == "1"
 
 app = Flask(__name__, static_folder=str(pathlib.Path(__file__).parent / "static"))
 
@@ -60,15 +60,15 @@ THRESH_INFO = json.loads((OUT / "threshold_selection.json").read_text()) if (OUT
 # Both stores are overridable so the API tests can run against throwaway
 # databases. A test suite that writes to the same steward.db a demo runs from
 # is a test suite that will eventually lose somebody's review session.
-DB = store.init_db(pathlib.Path(os.environ["SAMANVAY_DB"])
-                   if os.environ.get("SAMANVAY_DB") else None)
+DB = store.init_db(pathlib.Path(os.environ["TULYA_DB"])
+                   if os.environ.get("TULYA_DB") else None)
 auth.init_auth(DB)
 auth.purge_expired(DB)
 
 # One registry, shared with the ERP connector, so a code issued by a steward in
 # the console is the same code the next write-back batch carries.
 REG = registry.init_registry(sqlite3.connect(
-    os.environ.get("SAMANVAY_REGISTRY_DB") or (OUT / "registry.db"),
+    os.environ.get("TULYA_REGISTRY_DB") or (OUT / "registry.db"),
     check_same_thread=False))
 
 print(f"[api] {len(RECS)} test-split records, {len(PAIRS)} scored pairs loaded")
@@ -81,7 +81,7 @@ def _db():
 
 
 def needs(role):
-    """Role gate. Read routes only gate when SAMANVAY_REQUIRE_LOGIN=1."""
+    """Role gate. Read routes only gate when TULYA_REQUIRE_LOGIN=1."""
     if role == "viewer" and not REQUIRE_LOGIN:
         return lambda fn: fn
     return auth.requires(role, _db)

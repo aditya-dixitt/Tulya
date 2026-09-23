@@ -1,7 +1,46 @@
+<<<<<<< Updated upstream
 # TULYA — prototype
+=======
+# TULYA — Evidence-Backed Material Equivalence
+>>>>>>> Stashed changes
 
 AI-driven standardisation and harmonisation of material codes across CPSEs.
 **SIH26099 · Team AlgoRythms.**
+
+> **TULYA is the current version of this prototype.** It is the SAMANVAY matching
+> engine — unchanged, and still the thing that produces every score and verdict —
+> with an evidence-based governance layer on top of it:
+>
+> ```
+> AI proposes -> engineering evidence decides -> hard conflicts veto
+>   -> humans govern -> CNMC created -> audit + procurement impact
+> ```
+>
+> Open **`reports/tulya_console.html`** in a browser. No server, no network.
+> Rebuild it with `make tulya` (or `python3 tulya/build.py`).
+>
+> | added in TULYA | what it does |
+> |---|---|
+> | Material Passport | one identity page per material: legacy codes, normalised attributes, standards, match analysis, verdict, steward decision, CNMC issuance |
+> | Engineering Evidence | explicit attribute-by-attribute comparison on every proposal — the section that makes *similarity ≠ equivalence* visible |
+> | Standards Knowledge Graph | how the cited designations relate, each edge typed and carrying a verification state |
+> | Governed verdict states | IDENTICAL · EQUIVALENT · CONDITIONAL EQUIVALENCE · DIFFERENT · CONFLICT · UNRESOLVED |
+> | Analytics | what is happening — KPIs and six charts over the same records |
+> | Collaborative Workflow | AI → steward → engineering → procurement → final governance, with timeline and activity feed |
+> | Cross-CPSE Impact Simulator | what could happen if these materials are harmonised (**simulated**) |
+> | Procurement Intelligence | where a harmonised identity changes a procurement decision (**simulated** quantities) |
+>
+> **Provenance is labelled on screen.** Descriptions, legacy codes, CPSEs, plants,
+> specifications, scores and verdicts are real pipeline output on the locked test
+> split. Stock, demand, coverage and procurement quantities are **SIMULATED** —
+> derived deterministically from those same records so the demo is reproducible.
+> They are not a measured CPSE result and are marked wherever they appear.
+>
+> Everything the SAMANVAY prototype did still works: review queue, auto-suggest,
+> hard-key vetoes, golden records, performance, search, audit log, offline
+> approve/reject/un-merge in localStorage.
+
+---
 
 The same physical bolt sits in three CPSE material masters under three codes and
 three spellings — and, before any two companies are involved, under different
@@ -69,7 +108,7 @@ backend has a production counterpart that is a one-flag change:
 |---|---|---|---|
 | encoder | TF-IDF char n-gram + SVD | `all-MiniLM-L6-v2` | `--encoder sbert`. **Different numbers — re-measure.** |
 | index | numpy exact inner product | `faiss.IndexFlatIP` | mathematically identical, faiss is faster |
-| fuzzy | `difflib` token-set ratio | `rapidfuzz` | `SAMANVAY_FUZZY=rapidfuzz` |
+| fuzzy | `difflib` token-set ratio | `rapidfuzz` | `TULYA_FUZZY=rapidfuzz` |
 
 [`RESULTS.md`](RESULTS.md) always states which backends produced its numbers.
 
@@ -101,7 +140,8 @@ approve. `api/` is the review surface that makes that real:
 
 ```
 make api            steward console at http://localhost:8000 (Flask + SQLite)
-make static-demo     reports/steward_console_demo.html - a no-server, shareable copy
+make tulya           reports/tulya_console.html - the TULYA console, no server needed
+make static-demo     reports/steward_console_demo.html - the underlying data snapshot
 ```
 
 Both run the identical scoring/explain/grouping logic against the locked
@@ -123,7 +163,7 @@ Console feature surface:
   both records, from the source rows). All three are shown on every card, so
   the ranking can be argued with.
 - **Auto-suggest queue** — score ≥ 0.92, still requiring a human's sign-off.
-- **"Why did SAMANVAY match these?"** — each signal with its weight *and its
+- **"View evidence"** — each signal with its weight *and its
   contribution to the fused score*, every hard key as MATCH / MISMATCH /
   UNKNOWN, the evidence count, and a plain verdict. A pair that clears 0.92 but
   is capped by the coverage floor is labelled `HELD — THIN EVIDENCE`, not
@@ -149,7 +189,7 @@ Console feature surface:
   field left the dataset, the scored pairs and every measured result unchanged —
   verified by re-running the whole pipeline and reproducing 0.9543 exactly.
 
-The static export adds a **Test SAMANVAY** panel: three real pairs from the
+The static export adds a **Test TULYA** panel: three real pairs from the
 locked split (an ordinary duplicate, a duplicate whose descriptions barely
 overlap, and a near-identical pair that is *not* the same part) where the
 reader commits to an answer before the ground truth is revealed.

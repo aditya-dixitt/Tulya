@@ -164,7 +164,7 @@ def token_from_request():
     hdr = request.headers.get("Authorization", "")
     if hdr.lower().startswith("bearer "):
         return hdr[7:].strip()
-    return request.headers.get("X-Session-Token") or request.cookies.get("samanvay_session")
+    return request.headers.get("X-Session-Token") or request.cookies.get("tulya_session")
 
 
 def requires(role, conn_getter):

@@ -51,7 +51,7 @@ bought by weakening the blocks until everything is a candidate.
 | Fuzzy only | 0.99 | 0.8977 | 0.6358 | 0.7444 |
 | Embeddings only | 0.98 | 0.9286 | 0.3794 | 0.5387 |
 | Fusion, no veto | 0.93 | 0.8824 | 0.5145 | 0.6500 |
-| **SAMANVAY hybrid** | 0.66 | 0.8171 | 0.8736 | 0.8444 |
+| **TULYA hybrid** | 0.66 | 0.8171 | 0.8736 | 0.8444 |
 
 All five are scored on exactly the same candidate pairs, so the comparison
 isolates scoring rather than retrieval.

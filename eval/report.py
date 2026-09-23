@@ -190,7 +190,7 @@ bought by weakening the blocks until everything is a candidate.
 {row('Fuzzy only', res['layer_b']['Fuzzy only'])}
 {row('Embeddings only', res['layer_b']['Embeddings only'])}
 {row('Fusion, no veto', res['layer_b']['Fusion, no veto'])}
-{row('**SAMANVAY hybrid**', res['layer_b']['SAMANVAY hybrid'])}
+{row('**TULYA hybrid**', res['layer_b']['SAMANVAY hybrid'])}
 
 All five are scored on exactly the same candidate pairs, so the comparison
 isolates scoring rather than retrieval.

@@ -11,7 +11,9 @@ localStorage — but the underlying pair data is a frozen sample, not a live
 read of data/out/pairs_test.csv.
 
 Run:  python3 api/export_static_demo.py
-Output: reports/steward_console_demo.html
+Output: reports/steward_console_demo.html (the data snapshot)
+Then run `python3 tulya/build.py` to rebuild reports/tulya_console.html,
+the TULYA console, from that snapshot.
 """
 import sys, json, pickle, pathlib
 import numpy as np
@@ -207,7 +209,7 @@ def build_data():
         challenge.append(challenge_case(
             danger.iloc[0], "danger", "These two read almost identically. Same item or different?",
             "This is the dangerous one. Text similarity is near-perfect, so a fuzzy matcher "
-            "merges it — and two genuinely different parts end up under one code. SAMANVAY "
+            "merges it — and two genuinely different parts end up under one code. TULYA "
             "rejects it outright because a hard specification disagrees."))
 
     # ---- score distribution across every candidate pair -------------------
@@ -262,7 +264,7 @@ def build_data():
     )
 
 
-PAGE_TEMPLATE = pathlib.Path(__file__).with_name("static_demo_template.html").read_text()
+PAGE_TEMPLATE = pathlib.Path(__file__).with_name("_samanvay_template.orig.html").read_text()
 
 
 def _sanitize_nan(o):
