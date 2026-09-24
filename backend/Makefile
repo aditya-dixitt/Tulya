@@ -4,7 +4,7 @@
 PY ?= python3
 SPLIT ?= all
 
-.PHONY: help install migrate migration seed users api test check-stack
+.PHONY: help install migrate migration seed users api test check-stack check-llm
 
 help:
 	@grep -E '^[a-z-]+:.*?##' $(MAKEFILE_LIST) | sed 's/:.*##/\t/'
@@ -34,3 +34,9 @@ check-stack:    ## print which matching backends would actually run; fail if deg
 	@$(PY) -c "from app.matching.backends import resolve_all; \
 r = resolve_all(strict=False); print(r.attribution()); \
 raise SystemExit(1 if r.degraded else 0)"
+
+check-llm:      ## print whether LLM extraction is enabled and usable; fail if configured-but-broken
+	@$(PY) -c "from app.matching.llm_extract import resolve_llm; \
+ r = resolve_llm(strict=False); \
+ print('llm_extraction=' + ('disabled (rules only)' if not r.enabled else (r.model + (' [UNUSABLE: ' + str(r.reason) + ']' if r.degraded else ' [ready]')))); \
+ raise SystemExit(1 if (r.enabled and r.degraded) else 0)"
