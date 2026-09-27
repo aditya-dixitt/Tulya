@@ -1672,40 +1672,6 @@ body.signed-out main{display:none !important}
     </div>
   </details>
 </div>
-<div class="login" id="loginView" hidden>
-  <div class="login-card">
-    <div class="login-brand">
-      <div class="brand-slot" id="loginBrandSlot"></div>
-      <div class="wm">TULYA</div>
-      <div class="ws">Material Intelligence &amp; Governance</div>
-    </div>
-    <form class="login-form" id="loginForm" novalidate>
-      <h1>Sign in</h1>
-      <p class="sub">Use your work account to open the material governance console.</p>
-      <label class="fld"><span>Work email</span>
-        <input type="email" id="loginEmail" autocomplete="username" spellcheck="false"
-               placeholder="name@organisation.gov.in" required></label>
-      <label class="fld"><span>Password</span>
-        <input type="password" id="loginPass" autocomplete="current-password" required></label>
-      <div class="row">
-        <label class="chk"><input type="checkbox" id="loginRemember" checked><span>Remember me</span></label>
-        <a href="#" id="loginForgot">Forgot password?</a>
-      </div>
-      <div class="note" id="loginNote" role="status" aria-live="polite"></div>
-      <button type="submit" class="btn primary wide">Sign in</button>
-      <div class="demo">
-        <b>Offline demo</b>
-        This export has no identity provider behind it. Sign in with
-        <span class="code">steward@tulya.gov.in</span> / <span class="code">tulya-demo</span>.
-        The session is a flag in this browser&#8217;s local storage, nothing more.
-      </div>
-    </form>
-    <div class="login-foot">TULYA &#183; SIH26099 &#183; Team AlgoRythms
-      &#183; figures from the locked test-split evaluation</div>
-  </div>
-</div>
-
-
 <div class="nav-scrim" id="navScrim" hidden></div>
 <aside class="sidebar" id="appSidebar" aria-label="Main navigation">
   <div class="sb-brand">
@@ -4222,88 +4188,23 @@ function renderTulyaPanels() {
 
 
 /* ===========================================================================
-   DEMO SESSION
+   NO SIGN-IN GATE
    This console is an offline static export: there is no identity provider to
-   talk to and no server to hold a session. So the gate is exactly what it is —
-   a demo sign-in whose credential is printed on the page — and it says so,
-   rather than implying an authentication service that does not exist. It
-   reuses the same localStorage the rest of the console already uses; no new
-   auth architecture, no change to routes, data or panel behaviour.
+   talk to and no server to hold a session, so a sign-in screen whose password
+   is printed beneath the form would have been theatre. It was removed. The
+   steward identity written into the audit log is the name in the footer, and
+   decisions persist in this browser's local storage exactly as before.
    =========================================================================== */
-const AUTH_KEY  = 'tulya_demo_session_v1';
-const DEMO_USER = 'steward@tulya.gov.in';
-const DEMO_PASS = 'tulya-demo';
-
-function sessionRead(){
-  try { return JSON.parse(localStorage.getItem(AUTH_KEY) || 'null'); } catch(e){ return null; }
-}
-function sessionUser(){ const s = sessionRead(); return s && s.user; }
-function sessionActive(){ return !!sessionRead(); }
-function sessionWrite(user, remember){
-  try { localStorage.setItem(AUTH_KEY, JSON.stringify({ user, at: Date.now(), remember: !!remember })); }
-  catch(e){ /* private mode: the gate simply will not persist */ }
-}
+const AUTH_KEY = 'tulya_demo_session_v1';
 function sessionClear(){ try { localStorage.removeItem(AUTH_KEY); } catch(e){} }
 
-function authShowApp(){
-  document.body.classList.remove('signed-out');
-  const g = el('loginView'); if (g) g.hidden = true;
-  const name = sessionUser();
-  const av = el('tbAvatar');
-  if (av && name) { av.textContent = name.trim().charAt(0).toUpperCase(); av.title = name; }
-  const sn = el('stewardName');
-  if (sn && name && sn.value === 'steward_demo') sn.value = name.split('@')[0];
-}
-function authShowLogin(){
-  document.body.classList.add('signed-out');
-  const g = el('loginView'); if (g) g.hidden = false;
-  popClose(); navOpen(false);
-  const f = el('loginEmail'); if (f) setTimeout(()=>f.focus(), 40);
-}
-function authLogout(){
-  sessionClear();
-  authShowLogin();
-  const e = el('loginEmail'), p = el('loginPass'), n = el('loginNote');
-  if (e) e.value = ''; if (p) p.value = '';
-  if (n){ n.className = 'note ok'; n.textContent = 'Signed out. Your steward decisions are kept in this browser.'; }
-}
-
-function authSubmit(ev){
-  if (ev) ev.preventDefault();
-  const e = el('loginEmail'), p = el('loginPass'), n = el('loginNote');
-  const user = (e.value || '').trim(), pass = p.value || '';
-  if (!user || !pass){
-    if (n){ n.className = 'note bad'; n.textContent = 'Enter the demo email and password to continue.'; }
-    return false;
-  }
-  if (user.toLowerCase() !== DEMO_USER || pass !== DEMO_PASS){
-    if (n){ n.className = 'note bad';
-      n.textContent = 'Those are not the demo credentials. They are printed below the form.'; }
-    if (p) { p.value = ''; p.focus(); }
-    return false;
-  }
-  sessionWrite(user, el('loginRemember') && el('loginRemember').checked);
-  if (n){ n.className = 'note'; n.textContent = ''; }
-  authShowApp();
-  const name = location.hash.slice(1);
-  if (ROUTE_PANELS.indexOf(name) < 0) switchPanel('overview');
-  return false;
-}
-
 function installAuth(){
-  const form = el('loginForm');
-  if (form && !form.dataset.wired){
-    form.dataset.wired = '1';
-    form.addEventListener('submit', authSubmit);
-    const fp = el('loginForgot');
-    if (fp) fp.addEventListener('click', ev=>{
-      ev.preventDefault();
-      const n = el('loginNote');
-      if (n){ n.className = 'note'; n.textContent =
-        'This is an offline demo export — there is no account to recover. The demo credentials are below.'; }
-    });
-  }
-  if (sessionActive()) authShowApp(); else authShowLogin();
+  // No sign-in gate. This is an offline export with no identity provider behind
+  // it, so a credential printed on the page bought nothing and cost the reviewer
+  // a click. The console opens directly on the workspace.
+  sessionClear();
+  document.body.classList.remove('signed-out');
+  const g = el('loginView'); if (g) g.remove();
 }
 
 /* ===========================================================================
@@ -4421,19 +4322,17 @@ function renderNotifs(){
 
 function renderAcct(){
   const pan = el('acctPanel'); if (!pan) return;
-  const who = (el('stewardName') && el('stewardName').value) || sessionUser() || 'steward_demo';
+  const who = (el('stewardName') && el('stewardName').value) || 'steward_demo';
   pan.innerHTML =
     `<div class="who"><b>${esc(who)}</b><span>Data steward · offline demo</span></div>`
   + `<button type="button" role="menuitem" data-go="passport">Profile</button>`
   + `<button type="button" role="menuitem" data-go="performance">Settings</button>`
-  + `<div class="sep"></div>`
-  + `<button type="button" role="menuitem" class="danger" data-act="logout">Log out</button>`
-  + `<div class="note">Logging out clears the demo session only. Your steward decisions stay in this
-       browser's local storage.</div>`;
+  + `<div class="note">This export has no sign-in. The steward name in the footer is the
+       identity written into the audit log, and your decisions stay in this browser's
+       local storage.</div>`;
   pan.querySelectorAll('button').forEach(b=>{
     b.addEventListener('click', ()=>{
       popClose();
-      if (b.dataset.act === 'logout') return authLogout();
       if (b.dataset.go) switchPanel(b.dataset.go);
     });
   });

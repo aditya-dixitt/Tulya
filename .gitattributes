@@ -1,0 +1,20 @@
+# ---------------------------------------------------------------------------
+# Generated and exported artifacts.
+#
+# Without this, ~1.9 MB of exported console HTML outweighs the Python engine
+# and GitHub reports this repository — and the owner's whole profile — as an
+# HTML project. These files are build outputs, not source: keep them in the
+# repo (the static demo is the point), but out of the language statistics and
+# out of diffs nobody reviews by hand.
+# ---------------------------------------------------------------------------
+
+reports/*.html                      linguist-generated=true
+api/tulya_template.html             linguist-generated=true
+api/_samanvay_template.orig.html    linguist-generated=true
+
+# Generated datasets and evaluation output
+data/out/**                         linguist-generated=true
+*.csv                               linguist-generated=true
+
+# tulya/*.js, tulya/*.css and api/static/index.html are hand-written source
+# and are deliberately NOT excluded — they should count.
