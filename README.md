@@ -1,8 +1,7 @@
-<<<<<<< Updated upstream
+
 # TULYA — prototype
-=======
 # TULYA — Evidence-Backed Material Equivalence
->>>>>>> Stashed changes
+
 
 AI-driven standardisation and harmonisation of material codes across CPSEs.
 **SIH26099 · Team AlgoRythms.**
