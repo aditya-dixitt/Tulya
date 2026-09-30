@@ -29,6 +29,11 @@ SRC_TEMPLATE = ROOT / "api" / "_samanvay_template.orig.html"
 SNAPSHOT = ROOT / "reports" / "steward_console_demo.html"
 OUT_TEMPLATE = ROOT / "api" / "tulya_template.html"
 OUT_CONSOLE = ROOT / "reports" / "tulya_console.html"
+# Vercel deploys public/ as a plain static site. Emitting the console there
+# too keeps the deployed page and reports/ from drifting apart -- there is no
+# build step on Vercel to regenerate it, so whatever is committed is what
+# ships.
+OUT_PUBLIC = ROOT / "public" / "index.html"
 
 MISSES = []
 
@@ -908,9 +913,13 @@ def main():
     OUT_CONSOLE.write_text(h.replace("__DATA_JSON__", json.dumps(data, separators=(",", ":"))),
                            encoding="utf-8")
 
+    OUT_PUBLIC.parent.mkdir(parents=True, exist_ok=True)
+    OUT_PUBLIC.write_bytes(OUT_CONSOLE.read_bytes())
+
     leftover = len(re.findall(r"SAMANVAY|Samanvay|samanvay", OUT_CONSOLE.read_text(encoding="utf-8")))
     print("wrote %s" % OUT_TEMPLATE.relative_to(ROOT))
     print("wrote %s  (%.0f KB)" % (OUT_CONSOLE.relative_to(ROOT), OUT_CONSOLE.stat().st_size / 1024))
+    print("wrote %s  (served at / by Vercel)" % OUT_PUBLIC.relative_to(ROOT))
     print("residual SAMANVAY strings (data keys only, renamed on display): %d" % leftover)
 
 
