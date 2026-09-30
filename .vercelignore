@@ -1,0 +1,21 @@
+# Vercel must not try to build a Python function out of this repo.
+#
+# The 5,715 MB bundle failure came from Vercel discovering a Python entry point
+# and installing backend/requirements.txt, which pulls torch and its NVIDIA CUDA
+# wheels. Nothing in here belongs on Vercel: the matching engine needs a
+# persistent process, a warm FAISS index and PostgreSQL. Vercel hosts the
+# offline console (one static HTML file) and nothing else.
+
+backend/
+api/
+engine/
+erp/
+eval/
+tests/
+data/
+docs/
+*.py
+requirements*.txt
+Makefile
+.env
+.env.example

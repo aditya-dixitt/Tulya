@@ -30,3 +30,7 @@ data/out/steward.db
 # per split), holdout_run.json + holdout_history.jsonl (the locked test-split
 # ledger), eval_dev.json. Keeping them tracked means a judge — or a `git log` —
 # can see the measured numbers without re-running the pipeline.
+
+# Files Claude delivered into this folder; not part of the project source.
+Claude outputs/
+_audit/

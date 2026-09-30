@@ -1,0 +1,28 @@
+# Render blueprint — a container host with no 500 MB function cap and a
+# process that stays warm, which is what the matching engine needs.
+# Railway, Fly.io and Hugging Face Spaces all take the same Dockerfile.
+services:
+  - type: web
+    name: tulya-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/health
+    plan: standard          # sentence-transformers + FAISS will not fit in 512 MB RAM
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: MATCHING_STRICT
+        value: "true"
+      - key: SEED_DEMO_USERS
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tulya-db
+          property: connectionString
+
+databases:
+  - name: tulya-db
+    plan: basic-256mb

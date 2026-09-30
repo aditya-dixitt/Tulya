@@ -1,0 +1,13 @@
+# CPU-only dependency set. Identical to requirements.txt except that torch is
+# pinned to the CPU build, which drops every nvidia-*-cu12 wheel and triton.
+#
+# On a container host this is the file to install: same behaviour, roughly an
+# order of magnitude less to download and store. It does NOT make the stack fit
+# in a Vercel function — see docs/DEPLOYMENT.md for why that is the wrong
+# target regardless of size.
+#
+#   pip install -r backend/requirements-cpu.txt
+
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+-r requirements.txt
