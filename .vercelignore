@@ -19,3 +19,9 @@ requirements*.txt
 Makefile
 .env
 .env.example
+pyproject.toml
+setup.py
+setup.cfg
+Pipfile*
+poetry.lock
+uv.lock
