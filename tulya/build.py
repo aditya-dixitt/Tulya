@@ -147,14 +147,14 @@ def icon(key):
 
 
 def build_nav():
-    # The brand area is deliberately EMPTY. The existing TULYA mark drops into
-    # .brand-slot; nothing is invented to stand in for it, and the slot has a
-    # fixed height so adding the logo later does not reflow the navigation.
+    # Brand area: the project name. Fixed-height slot, so it never reflows the nav.
     out = [  # LOGIN_VIEW removed: the console opens straight into the workspace
            '<div class="nav-scrim" id="navScrim" hidden></div>',
            '<aside class="sidebar" id="appSidebar" aria-label="Main navigation">',
            '  <div class="sb-brand">',
-           '    <div class="brand-slot" id="brandSlot" aria-label="Brand"></div>',
+           '    <div class="brand-slot" id="brandSlot">',
+           '      <span class="brand-text">TULYA</span>',
+           '    </div>',
            '  </div>',
            '  <nav>']
     first = True

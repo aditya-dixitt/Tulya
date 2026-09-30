@@ -132,12 +132,11 @@ body.nav-open .nav-scrim{opacity:1}
 .sidebar::-webkit-scrollbar{width:6px}
 .sidebar::-webkit-scrollbar-thumb{background:var(--n-200);border-radius:3px}
 
-/* Reserved brand area. Intentionally empty — the existing TULYA mark drops in
-   here. Nothing is invented to fill it, and the height is fixed so adding the
-   logo later does not reflow the navigation below it. */
+/* Brand area — the project name. Height is fixed so the nav never reflows. */
 .sb-brand{height:64px;flex:none;border-bottom:1px solid var(--n-200);
           display:flex;align-items:center;padding:0 18px}
 .sb-brand .brand-slot{width:100%;height:32px;display:flex;align-items:center}
+.brand-text{font-size:18px;font-weight:800;letter-spacing:2px;color:#142B45}
 
 .sidebar nav{display:block;background:none;border:none;padding:10px 10px 22px;overflow:visible}
 .sb-group{padding:15px 8px 6px;font-size:10px;font-weight:600;letter-spacing:.8px;
