@@ -1,5 +1,5 @@
 
-# TULYA — prototype
+# TULYA — prototype deployed 
 # TULYA — Evidence-Backed Material Equivalence
 
 
